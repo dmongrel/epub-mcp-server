@@ -17,7 +17,7 @@ import { setUpdateNotice } from "./tools/get-context.ts";
 /* ------------------------------------------------------------------ */
 
 const server = new Server(
-  { name: "epub-mcp-server", version: "1.0.0" },
+  { name: "epub-mcp-server", version: "0.1.0" },
   {
     capabilities: {
       tools: {},
