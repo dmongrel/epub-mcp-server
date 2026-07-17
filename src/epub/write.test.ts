@@ -24,21 +24,25 @@ describe("escXML", () => {
   });
 
   test("replaces XML-illegal control characters with the Unicode replacement character", () => {
+    expect(escXML("\x00")).toBe("�");
     expect(escXML("\x01")).toBe("�");
     expect(escXML("\x0b")).toBe("�");
-    expect(escXML(`a\x01b\x0bc`)).toBe("a�b�c");
+    expect(escXML(`a\x00b\x01c\x0bd`)).toBe("a�b�c�d");
   });
 
-  test("round-trips a title containing a tab and newline through writeEpub/parseEpub", async () => {
-    const title = "Title\twith\ntab and newline";
-    const e = newEpub(title, "Author");
+  test("round-trips a tab and newline in an attribute value (xml:lang) through writeEpub/parseEpub", async () => {
+    const lang = "en\tGB\nUS";
+    const e = newEpub("Title", "Author");
+    const pkg = primaryPackage(e)!;
+    pkg.metadata.titles[0]!.lang = lang;
+
     const dir = await mkdtemp(join(tmpdir(), "epub-write-test-"));
     const out = join(dir, "book.epub");
     await writeEpub(e, out);
     const reparsed = await parseEpub(out);
 
-    const pkg = primaryPackage(reparsed)!;
-    expect(pkg.metadata.titles[0]?.value).toBe(title);
+    const reparsedPkg = primaryPackage(reparsed)!;
+    expect(reparsedPkg.metadata.titles[0]?.lang).toBe(lang);
 
     await rm(dir, { recursive: true, force: true });
   });

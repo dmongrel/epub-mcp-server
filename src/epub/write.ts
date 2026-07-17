@@ -44,7 +44,7 @@ export function escXML(s: string): string {
       default: {
         const code = ch.codePointAt(0)!;
         const isIllegalControlChar =
-          (code >= 0x1 && code <= 0x8) || code === 0xb || code === 0xc || (code >= 0xe && code <= 0x1f);
+          (code >= 0x0 && code <= 0x8) || code === 0xb || code === 0xc || (code >= 0xe && code <= 0x1f);
         out += isIllegalControlChar ? "�" : ch;
         break;
       }
