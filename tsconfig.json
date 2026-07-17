@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    /* Module — ESNext for both Bun & Deno */
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+
+    /* Emit — skip compilation (Bun/Deno transpile at runtime) */
+    "noEmit": true,
+
+    /* Strictness */
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+
+    /* Interop */
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+
+    /* Output */
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

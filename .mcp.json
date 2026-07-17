@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fdx-mcp-server-bun": {
+      "command": "bun",
+      "args": ["run", "G:\\_MCP\\epub-mcp-server\\src\\index.ts"]
+    },
+    "fdx-mcp-server-deno": {
+      "command": "deno",
+      "args": ["run", "--allow-env", "--allow-read", "--allow-write", "G:\\_MCP\\epub-mcp-server\\src\\index.ts"]
+    }
+  }
+}

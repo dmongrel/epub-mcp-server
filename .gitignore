@@ -17,6 +17,7 @@
 # Dependency directories
 vendor/
 dist/
+node_modules/
 
 # Go module cache
 .cache/go-build/
