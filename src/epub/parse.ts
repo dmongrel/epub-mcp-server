@@ -1,5 +1,6 @@
 import { DOMParser, onErrorStopParsing, type Document, type Element } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
+import { readBinaryPortable } from "./runtime.ts";
 import { resolveHref } from "./resolve.ts";
 import type {
   ArchiveId,
@@ -17,18 +18,6 @@ import type {
   Resource,
   Spine,
 } from "./types.ts";
-
-/** Reads a file's bytes in a way that works under Bun and Deno. */
-async function readBinaryPortable(path: string): Promise<Uint8Array> {
-  if (typeof Bun !== "undefined") {
-    return new Uint8Array(await Bun.file(path).arrayBuffer());
-  }
-  const deno = (globalThis as Record<string, unknown>).Deno as
-    | { readFile(path: string): Promise<Uint8Array> }
-    | undefined;
-  if (deno) return await deno.readFile(path);
-  throw new Error("Unsupported runtime — requires Bun or Deno.");
-}
 
 const textDecoder = new TextDecoder("utf-8");
 const strictParser = new DOMParser({ onError: onErrorStopParsing });

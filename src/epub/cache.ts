@@ -1,15 +1,10 @@
 import { realpathSync } from "node:fs";
+import { currentPlatform } from "./runtime.ts";
 import { parseEpub } from "./parse.ts";
 import type { Epub } from "./types.ts";
 
 /** Number of parsed EPUBs a Cache holds by default. */
 export const DEFAULT_CACHE_SIZE = 4;
-
-function currentPlatform(): string {
-  if (typeof Bun !== "undefined") return process.platform; // "win32" | "darwin" | "linux" | ...
-  const deno = (globalThis as Record<string, unknown>).Deno as { build?: { os?: string } } | undefined;
-  return deno?.build?.os ?? "linux"; // Deno spells it "windows", not "win32"
-}
 
 /**
  * Returns a best-effort canonical form of path, used as Cache's internal
