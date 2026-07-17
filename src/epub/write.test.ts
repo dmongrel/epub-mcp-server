@@ -6,9 +6,43 @@ import { fileURLToPath } from "node:url";
 import { newEpub } from "./new-epub.ts";
 import { parseEpub } from "./parse.ts";
 import { primaryPackage } from "./resolve.ts";
-import { writeEpub } from "./write.ts";
+import { escXML, writeEpub } from "./write.ts";
 
 const fixturePath = join(dirname(fileURLToPath(import.meta.url)), "testdata", "the-magic-hower.epub");
+
+describe("escXML", () => {
+  test("escapes the five predefined XML entities and passes ordinary text through unchanged", () => {
+    expect(escXML(`& < > " '`)).toBe("&amp; &lt; &gt; &quot; &apos;");
+    expect(escXML("ordinary text 123")).toBe("ordinary text 123");
+  });
+
+  test("escapes tab, newline, and carriage return as numeric character references", () => {
+    expect(escXML("\t")).toBe("&#x9;");
+    expect(escXML("\n")).toBe("&#xA;");
+    expect(escXML("\r")).toBe("&#xD;");
+    expect(escXML("a\tb\nc\rd")).toBe("a&#x9;b&#xA;c&#xD;d");
+  });
+
+  test("replaces XML-illegal control characters with the Unicode replacement character", () => {
+    expect(escXML("\x01")).toBe("�");
+    expect(escXML("\x0b")).toBe("�");
+    expect(escXML(`a\x01b\x0bc`)).toBe("a�b�c");
+  });
+
+  test("round-trips a title containing a tab and newline through writeEpub/parseEpub", async () => {
+    const title = "Title\twith\ntab and newline";
+    const e = newEpub(title, "Author");
+    const dir = await mkdtemp(join(tmpdir(), "epub-write-test-"));
+    const out = join(dir, "book.epub");
+    await writeEpub(e, out);
+    const reparsed = await parseEpub(out);
+
+    const pkg = primaryPackage(reparsed)!;
+    expect(pkg.metadata.titles[0]?.value).toBe(title);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+});
 
 describe("writeEpub", () => {
   test("round-trips a real, messy EPUB with one edited chapter", async () => {

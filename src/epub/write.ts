@@ -4,14 +4,53 @@ import { dirname, join } from "node:path";
 import { writeBinaryPortable } from "./runtime.ts";
 import type { ArchiveId, Container, Epub, Guide, Manifest, Meta, Metadata, Package, Spine } from "./types.ts";
 
-/** Escapes s for safe use as either XML element text or an attribute value. */
+/**
+ * Escapes s for safe use as either XML element text or an attribute value.
+ * Ports Go's xml.EscapeText (see the Go reference implementation's
+ * epub/write.go): besides the five predefined entities, \t/\n/\r are escaped
+ * as numeric character references so attribute-value normalization on
+ * reparse can't silently rewrite them to plain spaces, and XML-illegal
+ * control characters are replaced with U+FFFD so writeEpub never emits a
+ * document parseEpub can't read back.
+ */
 export function escXML(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+  let out = "";
+  for (const ch of s) {
+    switch (ch) {
+      case "&":
+        out += "&amp;";
+        break;
+      case "<":
+        out += "&lt;";
+        break;
+      case ">":
+        out += "&gt;";
+        break;
+      case '"':
+        out += "&quot;";
+        break;
+      case "'":
+        out += "&apos;";
+        break;
+      case "\t":
+        out += "&#x9;";
+        break;
+      case "\n":
+        out += "&#xA;";
+        break;
+      case "\r":
+        out += "&#xD;";
+        break;
+      default: {
+        const code = ch.codePointAt(0)!;
+        const isIllegalControlChar =
+          (code >= 0x1 && code <= 0x8) || code === 0xb || code === 0xc || (code >= 0xe && code <= 0x1f);
+        out += isIllegalControlChar ? "�" : ch;
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /**
