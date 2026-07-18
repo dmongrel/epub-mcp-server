@@ -193,20 +193,17 @@ function createChaptersFromMarkdown(
       chapterId = `${dir}/${stem}-${i + 1}.xhtml`;
     }
 
+    let label = `Chapter ${frag.number}`;
+    if (frag.title !== "") {
+      label += `: ${frag.title}`;
+    } else if (!baseHasNoNumber(baseId) && baseId !== "") {
+      label = stripExtension(basename(id));
+    }
+
     const markup = chaptersToXHTML([frag]);
-    const tocSynced = insertChapter(e, pkg, chapterId, markup, "");
+    insertChapter(e, pkg, chapterId, markup, label);
     totalChars += markup.length;
     createdIds.push(chapterId);
-
-    if (tocSynced && i === 0) {
-      let label = `Chapter ${frag.number}`;
-      if (frag.title !== "") {
-        label += `: ${frag.title}`;
-      } else if (!baseHasNoNumber(baseId) && baseId !== "") {
-        label = stripExtension(basename(id));
-      }
-      syncTocOnChapterCreate(e, pkg, chapterId, label);
-    }
   });
 
   const result: EditChapterResult = {

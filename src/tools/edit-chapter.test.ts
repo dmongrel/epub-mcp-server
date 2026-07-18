@@ -68,6 +68,13 @@ describe("edit_chapter", () => {
     expect(cached.contentDocuments[createdIds[0]!]?.markup).toContain("First body.");
     expect(cached.contentDocuments[createdIds[1]!]?.markup).toContain("Second body.");
 
+    const toc = cached.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+    expect(toc.items).toHaveLength(2);
+    expect(toc.items[0]?.href).toBe(createdIds[0]);
+    expect(toc.items[0]?.label).toBe("Chapter 1");
+    expect(toc.items[1]?.href).toBe(createdIds[1]);
+    expect(toc.items[1]?.label).toBe("Chapter 2");
+
     await rm(dir, { recursive: true, force: true });
   });
 
