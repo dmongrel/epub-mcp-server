@@ -48,7 +48,14 @@ function deduplicateChapters(chapters: ChapterFragment[]): [ChapterFragment[], n
   return [deduped, duplicates];
 }
 
-/** Splits text that already has unique "# Chapter N" markers into per-chapter fragments. */
+/**
+ * Splits text into per-chapter fragments bounded by every "# Chapter N"
+ * marker occurrence, including duplicates — deduplication happens
+ * afterward, at the fragment level, in deduplicateChapters. Running this
+ * on undeduped text (rather than deleting duplicate marker lines first)
+ * is what lets each occurrence's body stay correctly bounded instead of
+ * bleeding into the previous chapter once its own marker is removed.
+ */
 function splitIntoChapters(text: string): ChapterFragment[] {
   const lines = text.split("\n");
 
