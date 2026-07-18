@@ -9,6 +9,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import "./tools/get-context.ts"; // self-registers get_context as an import side effect
+import "./tools/get-resource.ts";
+import "./tools/edit-resource.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
