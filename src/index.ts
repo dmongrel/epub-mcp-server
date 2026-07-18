@@ -29,6 +29,8 @@ import "./tools/new-epub.ts";
 import "./tools/save-epub.ts";
 import "./tools/close-epub.ts";
 import "./tools/reload-epub.ts";
+import "./tools/get-epubs-list.ts";
+import "./tools/get-cache-status.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
