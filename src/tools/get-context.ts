@@ -2,12 +2,8 @@
  * get_context — call before processing any file to get formatting rules,
  * constraints, and the full list of available tools with their descriptions.
  */
-
-export interface EpubTool {
-  name: string;
-  description: string;
-  inputSchema: object;
-}
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { getToolRegistry, registerTool, type EpubTool, type ToolHandlerResult } from "./registry.ts";
 
 /* ------------------------------------------------------------------ */
 /*  Tool definition                                                   */
@@ -15,8 +11,6 @@ export interface EpubTool {
 
 const baseDescription =
   "Read-Only. Call this tool before processing any file to get the exact formatting rules, constraints, and structural requirements. Returns a list of all available tools with their full descriptions.";
-
-const contextBody = "=== epub-mcp-server ===\nNo tools are registered yet.";
 
 export const getContextTool: EpubTool = {
   name: "get_context",
@@ -56,15 +50,27 @@ export function setUpdateNotice(latestVersion: string): void {
 /*  Handler                                                           */
 /* ------------------------------------------------------------------ */
 
-export function handleGetContext(): {
-  content: Array<{ type: "text"; text: string }>;
-} {
-  if (_updateNotice) {
-    return {
-      content: [{ type: "text", text: `${_updateNotice}${contextBody}` }],
-    };
-  }
-  return {
-    content: [{ type: "text", text: contextBody }],
-  };
+/** Lists every registered tool's name, description, and extended description, sorted by name. */
+export function handleGetContext(_server: Server, _args?: Record<string, unknown>): ToolHandlerResult {
+  const entries = [...getToolRegistry()].sort((a, b) => a.name.localeCompare(b.name));
+  const body = entries
+    .map((t) => {
+      let block = `# ${t.name}\n${t.description}`;
+      if (t.extendedDescription) block += `\n\n${t.extendedDescription}`;
+      return block;
+    })
+    .join("\n\n");
+
+  const text = _updateNotice ? `${_updateNotice}${body}` : body;
+  return { content: [{ type: "text", text }] };
 }
+
+registerTool(
+  getContextTool,
+  "Takes no arguments. Returns, for each registered tool (including get_context itself), its name, its " +
+    "short description as shown in the standard tool listing, and an extended description containing " +
+    "usage guidance that doesn't fit in the short form (argument nuances, side effects, caveats, " +
+    "examples). Call get_context first, before calling any other tool on this server, so you know what's " +
+    "available and how to use it correctly.",
+  handleGetContext,
+);

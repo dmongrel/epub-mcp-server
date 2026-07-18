@@ -1,9 +1,19 @@
 import { describe, expect, test, afterEach } from "bun:test";
-import { handleGetContext, getContextTool, setUpdateNotice } from "./get-context.ts";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { getContextTool, handleGetContext, setUpdateNotice } from "./get-context.ts";
+
+const fakeServer = {} as Server;
 
 describe("get_context", () => {
   test("tool description does not contain update notice by default", () => {
     expect(getContextTool.description).not.toContain("[SYSTEM NOTICE:");
+  });
+
+  test("lists get_context itself, since it self-registers on import", () => {
+    const result = handleGetContext(fakeServer, undefined);
+    const text = result.content.map((c) => c.text).join("");
+    expect(text).toContain("# get_context");
+    expect(text).toContain("Call get_context first");
   });
 });
 
@@ -24,7 +34,7 @@ describe("get_context with update notice", () => {
 
   test("setUpdateNotice prepends notice to handler output", () => {
     setUpdateNotice("2.3.4");
-    const result = handleGetContext();
+    const result = handleGetContext(fakeServer, undefined);
     const text = result.content.map((c) => c.text).join("");
     expect(text).toContain("[SYSTEM NOTICE:");
     expect(text).toContain("(latest 2.3.4)");
@@ -33,7 +43,7 @@ describe("get_context with update notice", () => {
   test("empty version resets to base description", () => {
     setUpdateNotice("");
     expect(getContextTool.description).not.toContain("[SYSTEM NOTICE:");
-    const result = handleGetContext();
+    const result = handleGetContext(fakeServer, undefined);
     const text = result.content.map((c) => c.text).join("");
     expect(text).not.toContain("[SYSTEM NOTICE:");
   });

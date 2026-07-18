@@ -8,9 +8,10 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
-import { getContextTool, handleGetContext } from "./tools/get-context.ts";
-import { checkForUpdate } from "./tools/check-update.ts";
+import "./tools/get-context.ts"; // self-registers get_context as an import side effect
 import { setUpdateNotice } from "./tools/get-context.ts";
+import { checkForUpdate } from "./tools/check-update.ts";
+import { dispatchTool, getTools } from "./tools/registry.ts";
 
 /* ------------------------------------------------------------------ */
 /*  MCP Server instance                                               */
@@ -26,51 +27,22 @@ const server = new Server(
 );
 
 /* ------------------------------------------------------------------ */
-/*  Tool definitions                                                  */
-/* ------------------------------------------------------------------ */
-
-interface EpubTool {
-  name: string;
-  description: string;
-  inputSchema: object;
-}
-
-const tools: EpubTool[] = [getContextTool];
-
-/* ------------------------------------------------------------------ */
 /*  Request handlers                                                  */
 /* ------------------------------------------------------------------ */
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools,
+  tools: getTools(),
 }));
-
-type HandlerResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
-const toolHandlers: Record<
-  string,
-  (args: Record<string, unknown> | undefined) => HandlerResult | Promise<HandlerResult>
-> = {
-  get_context: () => handleGetContext(),
-};
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-
-  const handler = toolHandlers[name];
-  if (handler) {
-    return await handler(args as Record<string, unknown> | undefined);
-  }
-
-  // Unknown tool
-  return {
-    content: [
-      {
-        type: "text",
-        text: `Unknown tool: ${name}. Available tools: ${tools.map((t) => t.name).join(", ")}`,
-      },
-    ],
-    isError: true,
-  };
+  // Spread into a fresh object literal: the MCP SDK's CallToolResult type carries an
+  // implicit index signature (from its underlying "loose" zod schema) that TypeScript
+  // won't structurally match against ToolHandlerResult, a declared interface (interfaces
+  // are treated as "open" for declaration merging, so TS refuses the match even though
+  // every property is compatible). A fresh literal sidesteps that check.
+  const result = await dispatchTool(server, name, args as Record<string, unknown> | undefined);
+  return { ...result };
 });
 
 /* ------------------------------------------------------------------ */
