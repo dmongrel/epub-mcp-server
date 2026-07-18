@@ -17,6 +17,8 @@ import "./tools/get-guide.ts";
 import "./tools/edit-guide.ts";
 import "./tools/get-manifest.ts";
 import "./tools/edit-manifest.ts";
+import "./tools/get-metadata.ts";
+import "./tools/edit-metadata.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
