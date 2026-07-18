@@ -18,6 +18,7 @@ export interface EpubTool {
 
 export type ToolHandlerResult = {
   content: Array<{ type: "text"; text: string }>;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
 
@@ -64,6 +65,9 @@ function withLock<T>(fn: () => T | Promise<T>): Promise<T> {
  * top-level catch.
  */
 export function registerTool(tool: EpubTool, extendedDescription: string, handler: ToolHandler): void {
+  if (toolHandlers[tool.name]) {
+    throw new Error(`Tool "${tool.name}" is already registered`);
+  }
   tools.push(tool);
   toolRegistry.push({
     name: tool.name,

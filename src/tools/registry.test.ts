@@ -21,6 +21,19 @@ describe("registerTool", () => {
       extendedDescription: "Extended notes.",
     });
   });
+
+  test("throws when a tool with the same name is already registered", () => {
+    const name = uniqueName("dup-tool");
+    registerTool({ name, description: "", inputSchema: {} }, "", async () => ({
+      content: [{ type: "text", text: "ok" }],
+    }));
+
+    expect(() =>
+      registerTool({ name, description: "", inputSchema: {} }, "", async () => ({
+        content: [{ type: "text", text: "ok" }],
+      })),
+    ).toThrow(`Tool "${name}" is already registered`);
+  });
 });
 
 describe("dispatchTool", () => {
@@ -96,5 +109,19 @@ describe("dispatchTool", () => {
     await Promise.all([pA, pB]);
 
     expect(order).toEqual(["a-start", "a-end", "b-start", "b-end"]);
+  });
+});
+
+describe("dispatchTool with structuredContent", () => {
+  test("passes structuredContent through in the result", async () => {
+    const name = uniqueName("structured-tool");
+    registerTool({ name, description: "", inputSchema: {} }, "", async () => ({
+      content: [{ type: "text", text: "done" }],
+      structuredContent: { foo: "bar", count: 3 },
+    }));
+
+    const result = await dispatchTool(fakeServer, name, undefined);
+
+    expect(result.structuredContent).toEqual({ foo: "bar", count: 3 });
   });
 });
