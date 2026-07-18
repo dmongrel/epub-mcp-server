@@ -58,7 +58,7 @@ export function newEpub(title: string, author: string): Epub {
     },
     spine: {
       id: "content.opf#spine",
-      tocRef: "nav",
+      tocRef: "",
       pageProgressionDirection: "ltr",
       itemRefs: [{ id: "content.opf#spine/itemref[0]", idRef: "nav", linear: true, properties: [] }],
     },

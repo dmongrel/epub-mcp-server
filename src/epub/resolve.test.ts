@@ -10,6 +10,7 @@ import {
   ncxItem,
 } from "./resolve.ts";
 import type { Epub, Package } from "./types.ts";
+import { newEpub } from "./new-epub.ts";
 
 function emptyPackage(baseDir: string): Package {
   return {
@@ -229,6 +230,17 @@ describe("ncxItem", () => {
 
   test("returns undefined when there is no NCX", () => {
     const pkg = emptyPackage("");
+    expect(ncxItem(pkg)).toBeUndefined();
+  });
+
+  test("returns undefined for a freshly created book (regression: tocRef placeholder must not be mistaken for an NCX)", () => {
+    // newEpub() used to set spine.tocRef = "nav" as a placeholder. Since
+    // manifestItemById() matches by id suffix without checking media type,
+    // that value collided with the nav.xhtml manifest item's own id
+    // ("content.opf#manifest/nav" ends with "/nav"), so ncxItem() would
+    // wrongly report the EPUB 3 navigation document as a legacy NCX. A
+    // freshly created EPUB-3-only book has no NCX at all.
+    const pkg = primaryPackage(newEpub("NCX Regression Test", "Author"))!;
     expect(ncxItem(pkg)).toBeUndefined();
   });
 });

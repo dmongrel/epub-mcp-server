@@ -11,7 +11,7 @@ import { writeEpub } from "../epub/write.ts";
 const fakeServer = {} as Server;
 
 describe("get_navigation", () => {
-  test("returns the toc list for a fresh book", async () => {
+  test("returns the toc list for a fresh book with hasNcx false", async () => {
     const dir = await mkdtemp(join(tmpdir(), "epub-get-navigation-test-"));
     const path = join(dir, "book.epub");
     await writeEpub(newEpub("Nav Test", "Author"), path);
@@ -19,16 +19,8 @@ describe("get_navigation", () => {
     const result = await handleGetNavigation(fakeServer, { path });
 
     expect(result.isError).toBeUndefined();
-    // NOT `false`: newEpub() sets spine.tocRef = "nav", and ncxItem()
-    // matches manifest items by id-suffix without checking media type, so
-    // it matches the nav.xhtml manifest item itself (id
-    // "content.opf#manifest/nav" ends with "/nav") and misreports it as an
-    // NCX. This is a pre-existing bug shared identically with the Go
-    // reference (epub/new_epub.go also hardcodes TocRef: "nav", and
-    // epub/resolve.go's NCXItem() has the same unchecked suffix match) —
-    // see task-1-report.md for detail. Asserting actual behavior here
-    // rather than silently masking the discrepancy.
-    expect(result.structuredContent?.hasNcx).toBe(true);
+    // A freshly created EPUB-3-only book has no legacy NCX.
+    expect(result.structuredContent?.hasNcx).toBe(false);
     const lists = result.structuredContent?.lists as Array<{ type?: string; items: unknown[] }>;
     const toc = lists.find((l) => l.type === "toc");
     expect(toc).toBeDefined();
