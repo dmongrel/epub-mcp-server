@@ -24,6 +24,7 @@ import "./tools/edit-navigation.ts";
 import "./tools/edit-chapter.ts";
 import "./tools/get-chapter.ts";
 import "./tools/get-cover.ts";
+import "./tools/edit-cover.ts";
 import "./tools/convert-manuscript.ts";
 import "./tools/read-epub.ts";
 import "./tools/new-epub.ts";
