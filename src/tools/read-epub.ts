@@ -3,8 +3,8 @@
  * metadata, reading order, and table of contents. Mirrors Go's
  * tools/read_epub.go.
  *
- * summarizeEpub is exported for reload-epub.ts (this phase's Task 4),
- * which needs the identical summary shape after a fresh re-parse.
+ * summarizeEpub is exported for new-epub.ts and reload-epub.ts, which
+ * both need the identical summary shape after a fresh (re-)parse.
  */
 import { resolve } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";

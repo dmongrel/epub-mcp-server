@@ -68,7 +68,8 @@ registerTool(
     "mimetype, navigation document with an empty table of contents, stylesheet) — deliberately with no " +
     "chapters yet, rather than a placeholder one you'd have to remember to delete before adding real " +
     "content. Caches the parsed result in memory — inserting it as the most recently used entry and " +
-    "evicting the least recently used if the cache is full — and returns its metadata. After creating an " +
+    "evicting the least recently used if the cache is full — and returns its metadata, including an " +
+    "(initially empty) tableOfContents tree in the same shape read_epub returns. After creating an " +
     "EPUB, use edit_chapter to add chapters (each one is added to the table of contents automatically) and " +
     "save_epub to persist changes; save_epub adds a single blank chapter automatically if none exist yet " +
     "by the time it's called, since EPUB requires at least one. The returned path is canonicalized " +
