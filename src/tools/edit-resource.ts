@@ -11,7 +11,7 @@ import { evictionNote } from "./eviction.ts";
 import { verbPast } from "./idlist.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
-import { manifestItemById, primaryPackage, relativeHref } from "../epub/resolve.ts";
+import { manifestItemByHref, manifestItemById, primaryPackage, relativeHref } from "../epub/resolve.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
 interface EditResourceArgs {
@@ -210,7 +210,7 @@ function editExistingResource(e: Epub, pkg: Package, id: string, data: Uint8Arra
   res.data = data;
   if (mediaType) {
     res.mediaType = mediaType;
-    const item = pkg.manifest.items.find((i) => i.href === id);
+    const item = manifestItemByHref(pkg, id);
     if (item) item.mediaType = mediaType;
   }
   return { action: "edit", id, mediaType: res.mediaType, sizeBytes: data.length };
@@ -219,7 +219,7 @@ function editExistingResource(e: Epub, pkg: Package, id: string, data: Uint8Arra
 function removeResource(e: Epub, pkg: Package, id: string): EditResourceResult {
   const res = e.resources[id];
   if (!res) throw new Error(`no resource with id ${JSON.stringify(id)} in ${JSON.stringify(pkg.id)}; call get_manifest to list valid ids`);
-  const item = pkg.manifest.items.find((i) => i.href === id);
+  const item = manifestItemByHref(pkg, id);
   if (item) {
     if (item.properties.includes("cover-image")) {
       throw new Error(`${JSON.stringify(id)} is the cover image; use edit_cover instead`);
