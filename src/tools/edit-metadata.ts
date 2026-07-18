@@ -196,6 +196,7 @@ function editList<T extends { id: ArchiveId }>(
   }
 }
 
+/** Relies on every call site constructing object literals with the same key order as their type's declared field order in ../epub/types.ts — JSON.stringify is key-order-sensitive. */
 function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
