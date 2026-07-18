@@ -11,6 +11,8 @@ import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprot
 import "./tools/get-context.ts"; // self-registers get_context as an import side effect
 import "./tools/get-resource.ts";
 import "./tools/edit-resource.ts";
+import "./tools/get-spine.ts";
+import "./tools/edit-spine.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
