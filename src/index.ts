@@ -13,6 +13,8 @@ import "./tools/get-resource.ts";
 import "./tools/edit-resource.ts";
 import "./tools/get-spine.ts";
 import "./tools/edit-spine.ts";
+import "./tools/get-guide.ts";
+import "./tools/edit-guide.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
