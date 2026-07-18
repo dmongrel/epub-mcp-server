@@ -15,6 +15,8 @@ import "./tools/get-spine.ts";
 import "./tools/edit-spine.ts";
 import "./tools/get-guide.ts";
 import "./tools/edit-guide.ts";
+import "./tools/get-manifest.ts";
+import "./tools/edit-manifest.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
