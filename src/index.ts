@@ -20,6 +20,7 @@ import "./tools/edit-manifest.ts";
 import "./tools/get-metadata.ts";
 import "./tools/edit-metadata.ts";
 import "./tools/get-navigation.ts";
+import "./tools/edit-navigation.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
