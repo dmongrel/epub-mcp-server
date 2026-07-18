@@ -9,11 +9,14 @@
  * best-effort (boolean return, no throw): a book with no EPUB 3
  * navigation document has nothing to sync, and that's not an error
  * condition for the chapter create/remove that triggered the sync
- * attempt — it's simply skipped. This means catching the throwing
- * primaryNavigation/findOrCreateNavList calls internally, converting
- * them to a false return, rather than propagating per this codebase's
- * usual throw-only convention (which governs MCP tool handlers'
- * error-vs-user contract, not every internal helper's own contract).
+ * attempt — it's simply skipped. This means catching primaryNavigation's
+ * throw internally and converting it to a false return, rather than
+ * propagating per this codebase's usual throw-only convention (which
+ * governs MCP tool handlers' error-vs-user contract, not every internal
+ * helper's own contract). syncTocOnChapterCreate's second catch, around
+ * findOrCreateNavList(nav, "toc", "create"), is currently unreachable —
+ * that function only throws for a non-"create" third argument — but is
+ * kept as defensive symmetry in case that contract ever changes.
  */
 import { removeAt } from "./idlist.ts";
 import { primaryNavigation } from "./get-navigation.ts";

@@ -37,6 +37,23 @@ describe("syncTocOnChapterCreate", () => {
 
     expect(syncTocOnChapterCreate(e, pkg, "ch1.xhtml", "Chapter 1")).toBe(false);
   });
+
+  test("also mirrors the new entry into the legacy NCX when the book has one", () => {
+    const e = newEpub("Sync Create NCX Test", "Author");
+    const pkg = primaryPackage(e)!;
+    // newEpub()'s skeleton has no NCX; add one directly to exercise the
+    // sync path, mirroring how a real EPUB 2-compat book would already
+    // have one on disk.
+    pkg.spine.tocRef = "ncx";
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ncx`, href: "toc.ncx", mediaType: "application/x-dtbncx+xml", properties: [], fallback: "", mediaOverlay: "" });
+    e.nCXs["toc.ncx"] = { id: "toc.ncx", markup: "", navMap: [] };
+
+    const synced = syncTocOnChapterCreate(e, pkg, "ch1.xhtml", "Chapter 1");
+
+    expect(synced).toBe(true);
+    expect(e.nCXs["toc.ncx"]!.navMap).toHaveLength(1);
+    expect(e.nCXs["toc.ncx"]!.markup).toContain("Chapter 1");
+  });
 });
 
 describe("syncTocOnChapterRemove", () => {
@@ -56,6 +73,24 @@ describe("syncTocOnChapterRemove", () => {
     const e = newEpub("Sync Remove Miss Test", "Author");
     const pkg = primaryPackage(e)!;
     expect(syncTocOnChapterRemove(e, pkg, "does-not-exist.xhtml")).toBe(false);
+  });
+
+  test("also mirrors the removal into the legacy NCX when the book has one", () => {
+    const e = newEpub("Sync Remove NCX Test", "Author");
+    const pkg = primaryPackage(e)!;
+    // newEpub()'s skeleton has no NCX; add one directly to exercise the
+    // sync path, mirroring how a real EPUB 2-compat book would already
+    // have one on disk.
+    pkg.spine.tocRef = "ncx";
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ncx`, href: "toc.ncx", mediaType: "application/x-dtbncx+xml", properties: [], fallback: "", mediaOverlay: "" });
+    e.nCXs["toc.ncx"] = { id: "toc.ncx", markup: "", navMap: [] };
+    syncTocOnChapterCreate(e, pkg, "ch1.xhtml", "Chapter 1");
+    expect(e.nCXs["toc.ncx"]!.navMap).toHaveLength(1);
+
+    const removed = syncTocOnChapterRemove(e, pkg, "ch1.xhtml");
+
+    expect(removed).toBe(true);
+    expect(e.nCXs["toc.ncx"]!.navMap).toHaveLength(0);
   });
 });
 
