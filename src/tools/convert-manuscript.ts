@@ -16,7 +16,7 @@ import { primaryNavigation } from "./get-navigation.ts";
 import { detectManuscriptFormat, splitManuscriptChapters, stripHtmlTags } from "./manuscript-parse.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
-import { primaryPackage, resolveHref } from "../epub/resolve.ts";
+import { primaryPackage } from "../epub/resolve.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
 interface ConvertManuscriptArgs {
@@ -144,7 +144,7 @@ function existingChaptersByNumber(e: Epub, pkg: Package): Map<number, string> {
       const m = MANUSCRIPT_TOC_CHAPTER_LABEL.exec(item.label.trim());
       if (!m || item.href === "") continue;
       const num = Number.parseInt(m[1]!, 10);
-      const archivePath = resolveHref(pkg, item.href);
+      const archivePath = item.href;
       if (archivePath) result.set(num, archivePath);
     }
   }
