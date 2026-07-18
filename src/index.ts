@@ -22,6 +22,7 @@ import "./tools/edit-metadata.ts";
 import "./tools/get-navigation.ts";
 import "./tools/edit-navigation.ts";
 import "./tools/edit-chapter.ts";
+import "./tools/get-chapter.ts";
 import { setUpdateNotice } from "./tools/get-context.ts";
 import { checkForUpdate } from "./tools/check-update.ts";
 import { dispatchTool, getTools } from "./tools/registry.ts";
