@@ -64,6 +64,25 @@ describe("save_epub", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  test("marks the original dirty when saving to a different 'as' path auto-adds a blank chapter", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "epub-save-epub-test-"));
+    const path = join(dir, "book.epub");
+    const asPath = join(dir, "book-copy.epub");
+    await writeEpub(newEpub("Save As Blank Chapter Test", "Author"), path);
+    await epubCache.load(path);
+
+    const preStatus = epubCache.entries().find((entry) => entry.path === path);
+    expect(preStatus?.dirty).toBeFalsy();
+
+    const result = await handleSaveEpub(fakeServer, { path, as: asPath });
+
+    expect(result.structuredContent?.addedBlankChapter).toBeTruthy();
+    const status = epubCache.entries().find((entry) => entry.path === path);
+    expect(status?.dirty).toBe(true);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
   test("adds a blank chapter automatically when saving a book with none", async () => {
     const dir = await mkdtemp(join(tmpdir(), "epub-save-epub-test-"));
     const path = join(dir, "book.epub");

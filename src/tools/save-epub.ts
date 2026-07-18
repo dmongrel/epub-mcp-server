@@ -110,7 +110,9 @@ registerTool(
     "original. Fails if path isn't currently cached — call read_epub first. Regenerates container.xml and " +
     "every package document (metadata, manifest, spine) from the in-memory structures, and writes every " +
     "content document, navigation document, NCX, and other resource back using its stored content " +
-    "verbatim, including any edits. When saving back to path (no as given), also clears that cache entry's " +
+    "verbatim, including any edits. Writes to a temporary file in the destination directory first and " +
+    "renames it into place, so a failed save never corrupts an existing file at the destination. When " +
+    "saving back to path (no as given), also clears that cache entry's " +
     "unsaved-edits flag, as reported by get_cache_status; saving to a different as path leaves it set, " +
     "since path on disk still doesn't match what's in memory.\n\n" +
     "EPUB requires at least one content document, but new_epub deliberately starts a book with none rather " +
