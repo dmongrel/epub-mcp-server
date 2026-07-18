@@ -16,10 +16,10 @@ export interface EpubTool {
   inputSchema: object;
 }
 
-export interface ToolHandlerResult {
+export type ToolHandlerResult = {
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
-}
+};
 
 export type ToolHandler = (
   server: Server,

@@ -36,13 +36,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  // Spread into a fresh object literal: the MCP SDK's CallToolResult type carries an
-  // implicit index signature (from its underlying "loose" zod schema) that TypeScript
-  // won't structurally match against ToolHandlerResult, a declared interface (interfaces
-  // are treated as "open" for declaration merging, so TS refuses the match even though
-  // every property is compatible). A fresh literal sidesteps that check.
-  const result = await dispatchTool(server, name, args as Record<string, unknown> | undefined);
-  return { ...result };
+  return dispatchTool(server, name, args as Record<string, unknown> | undefined);
 });
 
 /* ------------------------------------------------------------------ */
