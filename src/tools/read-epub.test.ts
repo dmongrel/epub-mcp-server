@@ -5,7 +5,10 @@ import { join } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { handleReadEpub, summarizeEpub } from "./read-epub.ts";
 import { canonicalPath } from "../epub/cache.ts";
+import { insertChapter } from "./edit-chapter.ts";
+import { epubCache } from "./epub-cache.ts";
 import { newEpub } from "../epub/new-epub.ts";
+import { primaryPackage } from "../epub/resolve.ts";
 import { writeEpub } from "../epub/write.ts";
 
 const fakeServer = {} as Server;
@@ -43,6 +46,34 @@ describe("read_epub", () => {
 
   test("errors when path is missing", async () => {
     await expect(handleReadEpub(fakeServer, { path: "" })).rejects.toThrow("path is required");
+  });
+
+  test("includes a real chapter in contentDocuments, filtering out only the nav document", async () => {
+    // Regression coverage for summarizeEpub's contentDocuments filter: the
+    // other read_epub tests only exercise a book with zero chapters, where
+    // the filter's affirmative case (a genuine chapter surviving the
+    // `archivePath in e.contentDocuments` check) is never actually proven —
+    // an inverted/broken filter would pass those tests too. This builds a
+    // book with one real chapter via insertChapter (the same path
+    // edit_chapter's create action uses) and confirms it appears in
+    // contentDocuments while the nav document still does not.
+    const dir = await mkdtemp(join(tmpdir(), "epub-read-epub-chapter-test-"));
+    const path = join(dir, "book.epub");
+    const e = newEpub("Read Epub Chapter Test", "Author");
+    await writeEpub(e, path);
+    const { epub: loaded } = await epubCache.load(path);
+    const pkg = primaryPackage(loaded)!;
+    insertChapter(loaded, pkg, "text/ch1.xhtml", "<html><body><p>Hello.</p></body></html>", "Chapter 1");
+    epubCache.markDirty(path);
+
+    const result = await handleReadEpub(fakeServer, { path });
+
+    const contentDocuments = result.structuredContent?.contentDocuments as string[];
+    expect(contentDocuments).toContain("text/ch1.xhtml");
+    expect(contentDocuments).not.toContain("nav.xhtml");
+    expect(contentDocuments).toHaveLength(1);
+
+    await rm(dir, { recursive: true, force: true });
   });
 });
 

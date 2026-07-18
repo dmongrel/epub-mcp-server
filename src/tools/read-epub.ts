@@ -45,9 +45,11 @@ export const readEpubTool: EpubTool = {
  * Builds a ReadEpubResult for an already-loaded Epub. Shared by read_epub
  * and reload_epub, since both need the same title/creators/
  * contentDocuments/table-of-contents summary after (re)loading a book.
+ * canonicalAbs must already be canonicalized (via canonicalPath) — this
+ * function trusts the caller and does no canonicalization itself.
  */
-export function summarizeEpub(abs: string, e: Epub): ReadEpubResult {
-  const result: ReadEpubResult = { path: abs, manifestItemCount: 0, contentDocuments: [] };
+export function summarizeEpub(canonicalAbs: string, e: Epub): ReadEpubResult {
+  const result: ReadEpubResult = { path: canonicalAbs, manifestItemCount: 0, contentDocuments: [] };
 
   const pkg = primaryPackage(e);
   if (!pkg) return result;
@@ -64,7 +66,10 @@ export function summarizeEpub(abs: string, e: Epub): ReadEpubResult {
     // Only actual content documents (chapters/sections) belong here — the
     // spine can also carry the nav document itself (as newEpub's does), which
     // lives in e.navigation rather than e.contentDocuments and isn't
-    // something other tools can target as a chapter.
+    // something other tools can target as a chapter. This filter is a
+    // deliberate divergence from the Go reference's read_epub.go, which has
+    // no such check and would leak the nav document into ContentDocuments
+    // for any book built by NewEpub — an untested latent bug there.
     if (!(archivePath in e.contentDocuments)) continue;
     result.contentDocuments.push(archivePath);
   }
