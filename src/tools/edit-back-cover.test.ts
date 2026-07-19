@@ -122,6 +122,23 @@ describe("edit_back_cover", () => {
 
     await rm(dir, { recursive: true, force: true });
   });
+
+  test("front cover and back cover can coexist without interfering with each other", async () => {
+    const { dir, path, sourcePath } = await writeTempBook();
+    const { handleEditCover } = await import("./edit-cover.ts");
+    await handleEditCover(fakeServer, { action: "create", path, id: "images/front.jpg", sourcePath });
+    await handleEditBackCover(fakeServer, { action: "create", path, id: "images/back.jpg", sourcePath });
+
+    const cached = epubCache.get(resolve(path))!;
+    const pkg = primaryPackage(cached)!;
+    // Front cover is first in the spine, back cover is last.
+    const firstItem = pkg.manifest.items.find((mi) => mi.id.endsWith("/" + pkg.spine.itemRefs[0]!.idRef));
+    const lastItem = pkg.manifest.items.find((mi) => mi.id.endsWith("/" + pkg.spine.itemRefs[pkg.spine.itemRefs.length - 1]!.idRef));
+    expect(firstItem?.href).toContain("cover.xhtml");
+    expect(lastItem?.href).toContain("back-cover.xhtml");
+
+    await rm(dir, { recursive: true, force: true });
+  });
 });
 
 describe("findBackCoverGuideRef", () => {
