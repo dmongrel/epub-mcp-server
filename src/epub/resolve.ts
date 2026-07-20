@@ -75,6 +75,36 @@ export function manifestItemById(pkg: Package, id: string): ManifestItem | undef
   return pkg.manifest.items.find((item) => item.id.endsWith(suffix));
 }
 
+/**
+ * Returns pkg's guide reference of type "other.back-cover", or undefined
+ * if none exists. The EPUB 3 spec reserves no manifest property or
+ * epub:type for a back cover (unlike the front cover's "cover-image"
+ * property) — this legacy guide reference is what identifies one.
+ */
+export function backCoverGuideRef(pkg: Package): { href: string } | undefined {
+  return pkg.guide?.references.find((r) => r.type === "other.back-cover");
+}
+
+/**
+ * Returns the spine index new reading-order content should be inserted
+ * at so it lands before the back cover, if the book has one — or
+ * itemRefs.length (append at the very end) if it doesn't. Keeps the back
+ * cover the last thing a linear read reaches regardless of what else adds
+ * itself to the spine afterwards.
+ */
+export function spineInsertionIndexBeforeBackCover(pkg: Package): number {
+  const ref = backCoverGuideRef(pkg);
+  if (!ref) return pkg.spine.itemRefs.length;
+
+  const item = manifestItemByHref(pkg, ref.href);
+  if (!item) return pkg.spine.itemRefs.length;
+
+  const prefix = pkg.manifest.id + "/";
+  const opfId = item.id.startsWith(prefix) ? item.id.slice(prefix.length) : item.id;
+  const index = pkg.spine.itemRefs.findIndex((r) => r.idRef === opfId);
+  return index >= 0 ? index : pkg.spine.itemRefs.length;
+}
+
 /** Returns the manifest item marked as the EPUB 3 navigation document (properties="nav"). */
 export function navItem(pkg: Package): ManifestItem | undefined {
   return pkg.manifest.items.find((item) => item.properties.includes("nav"));

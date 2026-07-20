@@ -25,7 +25,8 @@ import { removeMatching } from "./idlist.ts";
 import { syncTocOnChapterCreate, syncTocOnChapterRemove } from "./nav-sync.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
-import { manifestItemByHref, primaryPackage, relativeHref } from "../epub/resolve.ts";
+import { manifestItemByHref, primaryPackage, relativeHref, spineInsertionIndexBeforeBackCover } from "../epub/resolve.ts";
+import { insertAt, renumberSpine } from "./edit-spine.ts";
 import { validateXHTML } from "../epub/validate.ts";
 import type { Eviction } from "../epub/cache.ts";
 import type { Epub, Package } from "../epub/types.ts";
@@ -281,7 +282,10 @@ export function deleteChapterDocument(e: Epub, pkg: Package | undefined, id: str
 /**
  * Adds a new content document at id, with the given content and (if a
  * navigation document exists) a matching top-level toc entry, to e's
- * manifest and spine. Shared by createChapter and a future save_epub's
+ * manifest and spine. Inserted just before the back cover if the book has
+ * one (see spineInsertionIndexBeforeBackCover), otherwise appended at the
+ * end, so a back cover always stays the last thing a linear read reaches.
+ * Shared by createChapter, convert_manuscript, and a future save_epub's
  * fallback that ensures a book being saved has at least one content
  * document. Returns whether the toc entry was added.
  */
@@ -295,12 +299,9 @@ export function insertChapter(e: Epub, pkg: Package, id: string, content: string
     fallback: "",
     mediaOverlay: "",
   });
-  pkg.spine.itemRefs.push({
-    id: `${pkg.spine.id}/itemref[${pkg.spine.itemRefs.length}]`,
-    idRef: opfId,
-    linear: true,
-    properties: [],
-  });
+  const at = spineInsertionIndexBeforeBackCover(pkg);
+  pkg.spine.itemRefs = insertAt(pkg.spine.itemRefs, at, { id: "", idRef: opfId, linear: true, properties: [] });
+  renumberSpine(pkg);
   e.contentDocuments[id] = { id, mediaType: "application/xhtml+xml", markup: content };
   return syncTocOnChapterCreate(e, pkg, id, label);
 }
@@ -317,7 +318,8 @@ registerTool(
     "value would (e.g. action must still end up one of the three valid choices).\n\n" +
     'action "create": id is the archive path the new chapter should be saved at (e.g. ' +
     '"OEBPS/text/chapter-18.xhtml"). It\'s added to the manifest and appended to the end of the spine ' +
-    "reading order, content becomes its initial markup, and it's appended as a new entry to the navigation " +
+    "reading order — or, if the book has a back cover (see edit_back_cover), just before it, so the back " +
+    "cover stays the last thing a linear read reaches. content becomes its initial markup, and it's appended as a new entry to the navigation " +
     'document\'s "toc" list (label, if given, or else auto-derived from id, e.g. "chapter-18.xhtml" -> ' +
     '"Chapter 18") — the same list read_epub\'s tableOfContents and get_navigation report. Use ' +
     "edit_navigation afterwards if you want to rename, reorder, or nest that entry instead of accepting " +

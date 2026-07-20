@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { clampPosition, handleEditSpine, insertAt, renumberSpine } from "./edit-spine.ts";
+import { handleEditBackCover } from "./edit-back-cover.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
 import { writeEpub } from "../epub/write.ts";
@@ -60,6 +61,27 @@ describe("edit_spine", () => {
 
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent?.index).toBe(1);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("create with no position inserts before an existing back cover instead of appending after it", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "back-cover-source.jpg");
+    await writeFile(sourcePath, "fake-jpeg-bytes");
+    await handleEditBackCover(fakeServer, { action: "create", path, id: "images/back-cover.jpg", sourcePath });
+
+    const result = await handleEditSpine(fakeServer, { action: "create", path, id: "extra.xhtml" });
+    expect(result.isError).toBeUndefined();
+
+    const cached = epubCache.get(resolve(path))!;
+    const pkg = primaryPackage(cached)!;
+    const hrefs = pkg.spine.itemRefs.map((ref) => {
+      const item = pkg.manifest.items.find((it) => it.id === `${pkg.manifest.id}/${ref.idRef}`);
+      return item?.href;
+    });
+    expect(hrefs[hrefs.length - 1]).toBe("back-cover.xhtml");
+    expect(hrefs.indexOf("extra.xhtml")).toBeLessThan(hrefs.indexOf("back-cover.xhtml"));
 
     await rm(dir, { recursive: true, force: true });
   });

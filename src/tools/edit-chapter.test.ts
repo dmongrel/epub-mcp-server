@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { deleteChapterDocument, handleEditChapter, insertChapter } from "./edit-chapter.ts";
+import { handleEditBackCover } from "./edit-back-cover.ts";
 import { epubCache } from "./epub-cache.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
@@ -52,6 +53,27 @@ describe("edit_chapter", () => {
     await expect(
       handleEditChapter(fakeServer, { action: "create", path, id: "text/ch1.xhtml", content: VALID_XHTML }),
     ).rejects.toThrow("already exists");
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("create inserts new chapters before an existing back cover, keeping it last in the spine", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "back-cover-source.jpg");
+    await writeFile(sourcePath, "fake-jpeg-bytes");
+    await handleEditBackCover(fakeServer, { action: "create", path, id: "images/back-cover.jpg", sourcePath });
+
+    await handleEditChapter(fakeServer, { action: "create", path, id: "text/ch1.xhtml", content: VALID_XHTML });
+
+    const cached = epubCache.get(resolve(path))!;
+    const pkg = primaryPackage(cached)!;
+    const hrefs = pkg.spine.itemRefs.map((ref) => {
+      const item = pkg.manifest.items.find((it) => it.id === `${pkg.manifest.id}/${ref.idRef}`);
+      return item?.href;
+    });
+    expect(hrefs[hrefs.length - 1]).toBe("back-cover.xhtml");
+    expect(hrefs).toContain("text/ch1.xhtml");
+    expect(hrefs.indexOf("text/ch1.xhtml")).toBeLessThan(hrefs.indexOf("back-cover.xhtml"));
+
     await rm(dir, { recursive: true, force: true });
   });
 

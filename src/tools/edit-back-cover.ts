@@ -23,7 +23,7 @@ import { removeMatching, verbPast } from "./idlist.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
 import { archiveIdInUse, guessImageMediaType, manifestIdCandidate, uniqueManifestId } from "./edit-resource.ts";
-import { relativeArchiveHref, relativeHref, primaryPackage, manifestItemByHref } from "../epub/resolve.ts";
+import { relativeArchiveHref, relativeHref, primaryPackage, manifestItemByHref, backCoverGuideRef } from "../epub/resolve.ts";
 import { removeCoverPage, coverPageMarkup, uniqueArchivePath } from "./edit-cover.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
@@ -59,7 +59,7 @@ export const editBackCoverTool: EpubTool = {
 
 /** Returns the package's guide reference of type "other.back-cover", or undefined if none exists. */
 export function findBackCoverGuideRef(pkg: Package): { href: string } | undefined {
-  return pkg.guide?.references.find((r) => r.type === "other.back-cover");
+  return backCoverGuideRef(pkg);
 }
 
 /**
