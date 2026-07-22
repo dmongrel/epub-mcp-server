@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.2] - 2026-07-22
+
+### Added
+
+- `CHANGELOG.md`.
+
 ## [1.0.1] - 2026-07-21
 
 ### Fixed
