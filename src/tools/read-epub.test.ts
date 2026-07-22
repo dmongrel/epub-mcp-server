@@ -35,7 +35,9 @@ describe("read_epub", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  test("returns the canonical path as the result's path field", async () => {
+  // Case-folding an existing path and expecting it to still resolve only holds on case-insensitive
+  // filesystems (Windows, macOS) — on Linux, path.toUpperCase() names a file that doesn't exist.
+  test.skipIf(process.platform === "linux")("returns the canonical path as the result's path field", async () => {
     const dir = await mkdtemp(join(tmpdir(), "epub-read-epub-test-"));
     const path = join(dir, "book.epub");
     await writeEpub(newEpub("Canonical Path Test", "Author"), path);
