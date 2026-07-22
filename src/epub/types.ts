@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * The in-memory EPUB data model, mirroring the OCF/OPF layers defined by
  * the EPUB 3.3 specification (https://www.w3.org/TR/epub-33/). Nothing in
@@ -265,3 +268,4 @@ export interface Resource {
   /** Raw bytes (text resources such as CSS are simply valid UTF-8 in this array). */
   data: Uint8Array;
 }
+

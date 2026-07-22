@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * reload_epub — discard a cached EPUB and re-parse it fresh from disk.
  * Mirrors Go's tools/reload_epub.go.
@@ -53,3 +56,4 @@ registerTool(
     "behaves like a plain read_epub.",
   handleReloadEpub as never,
 );
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_chapter — read one content document by its id. Mirrors Go's
  * tools/get_chapter.go.
@@ -61,3 +64,4 @@ registerTool(
     "re-check the ids from read_epub if so.",
   handleGetChapter as never,
 );
+

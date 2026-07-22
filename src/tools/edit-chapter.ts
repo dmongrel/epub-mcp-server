@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_chapter — create, edit, or remove one content document (chapter/
  * section). Mirrors Go's tools/edit_chapter.go.
@@ -373,3 +376,4 @@ registerTool(
     "All three actions only touch the in-memory cache; call save_epub afterwards to write the result to disk.",
   handleEditChapter as never,
 );
+

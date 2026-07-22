@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Bun/Deno portability helpers shared across the epub/ package. Nothing
  * else in this package should reimplement runtime detection locally —
@@ -40,3 +43,4 @@ export function currentPlatform(): string {
   const deno = (globalThis as Record<string, unknown>).Deno as { build?: { os?: string } } | undefined;
   return deno?.build?.os ?? "linux"; // Deno spells it "windows", not "win32"
 }
+

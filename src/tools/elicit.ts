@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * resolveArg/withHint — shared elicitation helper every tool with
  * omittable string arguments uses, mirroring the Go reference's
@@ -55,3 +58,4 @@ export async function resolveArg(
 export function withHint(message: string, hint: string): string {
   return hint === "" ? message : `${message} (${hint})`;
 }
+

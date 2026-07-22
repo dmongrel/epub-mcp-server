@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_manifest — change the properties/fallback/mediaOverlay/mediaType
  * of an existing manifest item. Mirrors Go's tools/edit_manifest.go.
@@ -107,3 +110,4 @@ registerTool(
     "afterwards to persist.",
   handleEditManifest as never,
 );
+

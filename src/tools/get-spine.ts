@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_spine — read the reading order (spine) of an already-read EPUB.
  * Mirrors Go's tools/get_spine.go.
@@ -53,3 +56,4 @@ registerTool(
     "includes non-linear and non-chapter entries.",
   handleGetSpine as never,
 );
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * convert_manuscript — convert an entire local .txt/.md/.html manuscript
  * file into an EPUB's chapters in one call. Mirrors Go's
@@ -242,3 +245,4 @@ registerTool(
     "Only touches the in-memory cache; call save_epub afterwards to persist the result to disk.",
   handleConvertManuscript as never,
 );
+

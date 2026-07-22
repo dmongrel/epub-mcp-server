@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -46,3 +49,4 @@ describe("new_epub", () => {
     await expect(handleNewEpub(fakeServer, { path: undefined, title: "T", author: "A" })).rejects.toThrow();
   });
 });
+

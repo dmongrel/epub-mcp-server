@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_metadata — create, edit, or remove one entry of the Dublin
  * Core / EPUB metadata. Mirrors Go's tools/edit_metadata.go.
@@ -220,3 +223,4 @@ registerTool(
     "afterwards to persist.",
   handleEditMetadata as never,
 );
+

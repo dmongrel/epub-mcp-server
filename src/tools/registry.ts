@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Generic tool registration/dispatch machinery shared by every MCP tool
  * this server exposes. One place records every tool for get_context's
@@ -117,3 +120,4 @@ export async function dispatchTool(
   }
   return handler(server, args);
 }
+

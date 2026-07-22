@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { defaultChapterLabel, syncNavRender, syncTocOnChapterCreate, syncTocOnChapterRemove } from "./nav-sync.ts";
 import { newEpub } from "../epub/new-epub.ts";
@@ -121,3 +124,4 @@ describe("defaultChapterLabel", () => {
     expect(defaultChapterLabel("---.xhtml")).toBe("Untitled");
   });
 });
+

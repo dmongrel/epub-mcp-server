@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { dispatchTool, getToolRegistry, getTools, registerTool } from "./registry.ts";
@@ -125,3 +128,4 @@ describe("dispatchTool with structuredContent", () => {
     expect(result.structuredContent).toEqual({ foo: "bar", count: 3 });
   });
 });
+

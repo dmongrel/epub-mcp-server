@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_resource — read one non-content manifest resource (stylesheet,
  * image, font, audio/video) by its archive-path id. Mirrors Go's
@@ -95,3 +98,4 @@ registerTool(
     "get_chapter, get_cover, or get_navigation for those instead.",
   handleGetResource as never,
 );
+

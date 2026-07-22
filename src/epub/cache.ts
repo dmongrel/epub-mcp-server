@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { realpathSync } from "node:fs";
 import { currentPlatform } from "./runtime.ts";
 import { parseEpub } from "./parse.ts";
@@ -154,3 +157,4 @@ export class Cache {
     return out.reverse();
   }
 }
+

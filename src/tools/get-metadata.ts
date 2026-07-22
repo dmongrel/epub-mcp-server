@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_metadata — read the full Dublin Core / EPUB metadata. Mirrors Go's
  * tools/get_metadata.go.
@@ -67,3 +70,4 @@ registerTool(
     "convenience summary of a subset of this data.",
   handleGetMetadata as never,
 );
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import type { Epub, Package } from "./types.ts";
 
 /**
@@ -111,3 +114,4 @@ function addCreator(pkg: Package, name: string, role: string): void {
     lang: "",
   });
 }
+

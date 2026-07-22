@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * save_epub — write a cached EPUB, including any edit_chapter/edit_*
  * edits, back to disk. Mirrors Go's tools/save_epub.go.
@@ -122,3 +125,4 @@ registerTool(
     "rename or restructure it like any other chapter.",
   handleSaveEpub as never,
 );
+

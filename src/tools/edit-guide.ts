@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_guide — create, edit, or remove one legacy EPUB 2 guide reference.
  * Mirrors Go's tools/edit_guide.go.
@@ -99,3 +102,4 @@ registerTool(
     "href/title. Only touches the in-memory cache; call save_epub afterwards to persist.",
   handleEditGuide as never,
 );
+

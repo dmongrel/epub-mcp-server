@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * check-update — at server start, check GitHub for a newer release.
  * Portable Bun/Deno: uses the same runtime-detection pattern as src/index.ts.
@@ -89,3 +92,4 @@ export async function checkForUpdate(): Promise<
   if (isNewer(local, remote)) return { available: true, latest: remote };
   return { available: false };
 }
+

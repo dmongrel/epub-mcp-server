@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { ElicitResult } from "@modelcontextprotocol/sdk/types.js";
@@ -82,3 +85,4 @@ describe("withHint", () => {
     expect(withHint("What path?", "the book you just created")).toBe("What path? (the book you just created)");
   });
 });
+

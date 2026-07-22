@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_guide — read the legacy EPUB 2 guide landmarks. Mirrors Go's
  * tools/get_guide.go.
@@ -49,3 +52,4 @@ registerTool(
     "older reading systems; most modern novels don't need it.",
   handleGetGuide as never,
 );
+

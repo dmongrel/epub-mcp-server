@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_manifest — list every manifest item. Mirrors Go's
  * tools/get_manifest.go.
@@ -76,3 +79,4 @@ registerTool(
     "fallback/mediaOverlay/mediaType in place.",
   handleGetManifest as never,
 );
+

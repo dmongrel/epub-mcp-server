@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_epubs_list — list .epub files in a directory. Mirrors Go's
  * tools/get_epubs_list.go.
@@ -70,3 +73,4 @@ registerTool(
     "path straight into read_epub to parse that book.",
   handleGetEpubsList as never,
 );
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { evictionNote } from "./eviction.ts";
 
@@ -20,3 +23,4 @@ describe("evictionNote", () => {
     expect(note).toBe(' Closed "/tmp/book.epub" to make room in the cache.');
   });
 });
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * epub-mcp-server
  * A Model Context Protocol (MCP) server built for Bun, compatible with Deno.
@@ -77,3 +80,4 @@ checkForUpdate().then((result) => {
     setUpdateNotice(result.latest);
   }
 });
+

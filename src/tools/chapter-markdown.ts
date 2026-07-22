@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Plaintext-markdown-to-XHTML chapter splitting: the "# Chapter N" /
  * "## \"Title\"" marker format edit_chapter's create action parses when
@@ -279,3 +282,4 @@ export function escapeXHTML(s: string): string {
   }
   return out;
 }
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Whole-manuscript chapter splitting for convert_manuscript: looser
  * chapter-marker matching than chapter-markdown.ts's "# Chapter N" (which
@@ -106,3 +109,4 @@ function dedupeFragmentsByNumber(fragments: ChapterFragment[]): ChapterFragment[
   }
   return out;
 }
+

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * new_epub — create a blank EPUB file on disk and load it into the
  * server's cache. Mirrors Go's tools/new_epub.go.
@@ -78,3 +81,4 @@ registerTool(
     "to refer to this exact same cache entry.",
   handleNewEpub as never,
 );
+

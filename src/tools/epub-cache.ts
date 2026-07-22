@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * epubCache — the bounded LRU cache every tool shares, so repeated reads
  * of the same file across tool calls don't re-parse it. Mirrors Go's
@@ -11,3 +14,4 @@
 import { Cache, DEFAULT_CACHE_SIZE } from "../epub/cache.ts";
 
 export const epubCache = new Cache(DEFAULT_CACHE_SIZE);
+

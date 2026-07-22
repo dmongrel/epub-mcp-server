@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -224,3 +227,4 @@ describe("resolveDocumentRelativeHref", () => {
     expect(resolveDocumentRelativeHref("chapters/sub/page.xhtml", "../image.jpg")).toBe("chapters/image.jpg");
   });
 });
+

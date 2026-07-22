@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_navigation — create, edit, or remove one entry of the EPUB 3
  * navigation document (table of contents, landmarks, page-list),
@@ -361,3 +364,4 @@ registerTool(
     "call save_epub afterwards to persist.",
   handleEditNavigation as never,
 );
+

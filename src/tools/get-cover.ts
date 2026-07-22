@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_cover — read the cover image of an already-read EPUB, if it has
  * one. Mirrors Go's tools/get_cover.go.
@@ -94,3 +97,4 @@ registerTool(
     "and reports sourcePath instead, avoiding sending large images through MCP.",
   handleGetCover as never,
 );
+

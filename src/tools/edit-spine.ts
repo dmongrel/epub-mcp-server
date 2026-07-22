@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_spine — add, change, or remove one entry of an already-read EPUB's
  * reading order. Mirrors Go's tools/edit_spine.go.
@@ -173,3 +176,4 @@ registerTool(
     "afterwards to persist.",
   handleEditSpine as never,
 );
+

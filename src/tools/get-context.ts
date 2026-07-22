@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_context — call before processing any file to get formatting rules,
  * constraints, and the full list of available tools with their descriptions.
@@ -74,3 +77,4 @@ registerTool(
     "available and how to use it correctly.",
   handleGetContext,
 );
+

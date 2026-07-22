@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_navigation — read the EPUB 3 navigation document (table of
  * contents, landmarks, page-list). Mirrors Go's tools/get_navigation.go.
@@ -125,3 +128,4 @@ registerTool(
     "item's id with edit_navigation to edit/remove it, or as the parent id to nest a new one under it.",
   handleGetNavigation as never,
 );
+

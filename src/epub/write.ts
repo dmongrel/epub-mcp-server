@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { zipSync, type Zippable } from "fflate";
 import { rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -267,3 +270,4 @@ function renderGuide(g: Guide): string {
   }
   return s;
 }
+

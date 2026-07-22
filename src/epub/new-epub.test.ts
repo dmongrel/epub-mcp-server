@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { newEpub } from "./new-epub.ts";
 import { primaryPackage } from "./resolve.ts";
@@ -39,3 +42,4 @@ describe("newEpub", () => {
     );
   });
 });
+

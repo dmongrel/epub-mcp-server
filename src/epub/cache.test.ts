@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,3 +122,4 @@ describe("canonicalPath", () => {
     expect(cache.get(fixturePath)).toBeUndefined();
   });
 });
+

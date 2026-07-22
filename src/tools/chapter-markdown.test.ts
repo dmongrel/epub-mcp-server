@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import {
   autoDetectMarkdown,
@@ -119,3 +122,4 @@ describe("escapeXHTML", () => {
     expect(escapeXHTML("Already &mdash; escaped")).toBe("Already &mdash; escaped");
   });
 });
+

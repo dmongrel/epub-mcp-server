@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { DOMParser, type Element, type Node } from "@xmldom/xmldom";
 import { autoCloseVoidElements } from "./validate.ts";
 
@@ -87,3 +90,4 @@ export function plainText(markup: string): string {
   }
   return paragraphs.join("\n\n");
 }
+

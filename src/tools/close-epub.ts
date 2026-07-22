@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * close_epub — remove a cached EPUB from memory, freeing its cache slot.
  * Mirrors Go's tools/close_epub.go.
@@ -58,3 +61,4 @@ registerTool(
     "edit_chapter call for this path re-parses it fresh from disk.",
   handleCloseEpub as never,
 );
+

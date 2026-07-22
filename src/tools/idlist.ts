@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Small generic helpers shared by every edit_ tool that addresses one
  * entry of an array-valued field by id, or needs the same tiny bit of
@@ -34,3 +37,4 @@ export function verbPast(action: string): string {
   if (action === "edit") return "Update";
   return action.charAt(0).toUpperCase() + action.slice(1);
 }
+

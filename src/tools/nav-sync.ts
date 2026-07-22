@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * Chapter-lifecycle <-> navigation syncing: keeps the "toc" nav list
  * (and legacy NCX, if present) up to date as chapters are created or
@@ -100,3 +103,4 @@ function removeNavPointByHref(points: NavPoint[], href: string): [NavPoint[], bo
   }
   return [points, false];
 }
+

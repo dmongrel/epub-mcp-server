@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -157,3 +160,4 @@ describe("navigation and NCX round-trip through a real write/parse cycle", () =>
     await rm(dir, { recursive: true, force: true });
   });
 });
+

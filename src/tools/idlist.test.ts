@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { contains, findIndex, removeAt, removeMatching, verbPast } from "./idlist.ts";
 
@@ -64,3 +67,4 @@ describe("verbPast", () => {
     expect(verbPast("remove")).toBe("Remove");
   });
 });
+

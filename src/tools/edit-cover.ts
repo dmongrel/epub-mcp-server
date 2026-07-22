@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_cover — create, edit, or remove the front cover image of an
  * already-read EPUB. Mirrors Go's tools/edit_cover.go.
@@ -304,3 +307,4 @@ registerTool(
     "All three actions only touch the in-memory cache; call save_epub afterwards to persist.",
   handleEditCover as never,
 );
+

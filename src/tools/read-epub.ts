@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * read_epub — parse a .epub file from disk into memory and return its
  * metadata, reading order, and table of contents. Mirrors Go's
@@ -106,3 +109,4 @@ registerTool(
     "this exact same cache entry.",
   handleReadEpub as never,
 );
+

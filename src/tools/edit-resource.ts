@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * edit_resource — create, edit, or remove one non-content manifest
  * resource. Mirrors Go's tools/edit_resource.go.
@@ -249,3 +252,4 @@ registerTool(
     "actions only touch the in-memory cache; call save_epub afterwards to persist.",
   handleEditResource as never,
 );
+

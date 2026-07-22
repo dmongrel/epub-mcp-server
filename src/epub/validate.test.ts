@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { autoCloseVoidElements, validateXHTML } from "./validate.ts";
 
@@ -50,3 +53,4 @@ describe("autoCloseVoidElements", () => {
     expect(autoCloseVoidElements("<p>text</p>")).toBe("<p>text</p>");
   });
 });
+

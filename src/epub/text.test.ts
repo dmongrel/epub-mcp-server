@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { plainText } from "./text.ts";
 
@@ -56,3 +59,4 @@ describe("plainText", () => {
     expect(plainText("")).toBe("");
   });
 });
+

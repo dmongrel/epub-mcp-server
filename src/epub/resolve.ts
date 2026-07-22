@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { posix } from "node:path";
 import type { Epub, ManifestItem, Package } from "./types.ts";
 
@@ -120,3 +123,4 @@ export function ncxItem(pkg: Package): ManifestItem | undefined {
   if (byTocRef) return byTocRef;
   return pkg.manifest.items.find((item) => item.mediaType === "application/x-dtbncx+xml");
 }
+

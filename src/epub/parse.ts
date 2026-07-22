@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { DOMParser, onErrorStopParsing, type Document, type Element } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
 import { readBinaryPortable } from "./runtime.ts";
@@ -428,3 +431,4 @@ function buildNCXNavPoints(ncxId: ArchiveId, els: Element[]): NCXNavPoint[] {
     };
   });
 }
+

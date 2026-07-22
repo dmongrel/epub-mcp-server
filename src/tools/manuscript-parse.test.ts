@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { detectManuscriptFormat, splitManuscriptChapters, stripHtmlTags } from "./manuscript-parse.ts";
 
@@ -76,3 +79,4 @@ describe("splitManuscriptChapters", () => {
     expect(fragments[0]).toMatchObject({ number: 5 });
   });
 });
+

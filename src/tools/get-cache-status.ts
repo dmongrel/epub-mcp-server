@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * get_cache_status — list the EPUBs currently held in memory. Mirrors
  * Go's tools/get_cache_status.go.
@@ -33,3 +36,4 @@ registerTool(
     "surprise.",
   handleGetCacheStatus as never,
 );
+

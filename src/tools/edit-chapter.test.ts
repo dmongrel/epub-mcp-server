@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -174,3 +177,4 @@ describe("deleteChapterDocument", () => {
     expect(pkg.manifest.items.some((i) => i.href === "text/ch1.xhtml")).toBe(false);
   });
 });
+

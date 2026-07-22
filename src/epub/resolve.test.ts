@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import {
   relativeArchiveHref,
@@ -244,3 +247,4 @@ describe("ncxItem", () => {
     expect(ncxItem(pkg)).toBeUndefined();
   });
 });
+

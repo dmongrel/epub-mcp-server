@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -149,3 +152,4 @@ describe("coverPageMarkup / xmlEscapeAttr", () => {
     expect(xmlEscapeAttr(`& < > "`)).toBe("&amp; &lt; &gt; &quot;");
   });
 });
+

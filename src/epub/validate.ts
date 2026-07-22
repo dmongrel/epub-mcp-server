@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import { DOMParser, onErrorStopParsing } from "@xmldom/xmldom";
 
 /**
@@ -48,3 +51,4 @@ export function validateXHTML(markup: string): void {
     throw new Error("no root element");
   }
 }
+

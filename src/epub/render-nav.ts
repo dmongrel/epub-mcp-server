@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 import type { NavPoint, Navigation, NCX, NCXNavPoint } from "./types.ts";
 import { escXML, idFragmentKey } from "./write.ts";
 
@@ -98,3 +101,4 @@ function renderNCXNavPoints(points: NCXNavPoint[], indent: number, order: { valu
   }
   return s;
 }
+

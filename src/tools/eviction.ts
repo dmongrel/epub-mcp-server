@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Joel L. Caesar
+// SPDX-License-Identifier: MIT
+
 /**
  * evictionNote — formats a warning suffix for a tool's summary text when
  * loading one EPUB evicted another from the cache, so data loss from an
@@ -14,3 +17,4 @@ export function evictionNote(evicted: Eviction | undefined): string {
   }
   return ` Closed ${JSON.stringify(evicted.path)} to make room in the cache.`;
 }
+
