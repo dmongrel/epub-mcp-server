@@ -3,7 +3,7 @@
 
 /**
  * check-update — at server start, check GitHub for a newer release.
- * Portable Bun/Deno: uses the same runtime-detection pattern as src/index.ts.
+ * Portable Bun/Deno/Node: uses the same runtime-detection pattern as src/index.ts.
  */
 
 interface DenoLike {
@@ -14,32 +14,42 @@ function getDeno(): DenoLike | undefined {
   return (globalThis as Record<string, unknown>).Deno as DenoLike | undefined;
 }
 
-/** Read a text file in a way that works under Bun and Deno. */
+/** Read a text file in a way that works under Bun, Deno, and Node. */
 async function readTextPortable(path: URL): Promise<string> {
   if (typeof Bun !== "undefined") {
     return await Bun.file(path).text();
   }
   const deno = getDeno();
   if (deno) return await deno.readTextFile(path);
-  throw new Error("Unsupported runtime — requires Bun or Deno.");
+  const { readFile } = await import("node:fs/promises");
+  return await readFile(path, "utf8");
 }
 
-/** Resolve package.json using import.meta.url (works under Bun and Deno). */
-function resolvePackagePath(): URL {
-  // src/tools/check-update.ts → ../../package.json
-  return new URL("../../package.json", import.meta.url);
+/**
+ * Locate and parse package.json by walking up from this module's location.
+ * Bundling (e.g. the npm-published dist/index.js) changes how many directory
+ * levels separate this file from the package root, so a fixed "../../" is
+ * not reliable — walk up instead of hardcoding a depth.
+ */
+async function findPackageJson(): Promise<{ version: string } | null> {
+  let dir = new URL(".", import.meta.url);
+  for (let i = 0; i < 5; i++) {
+    try {
+      const raw = await readTextPortable(new URL("package.json", dir));
+      const pkg = JSON.parse(raw) as { name?: string; version: string };
+      if (pkg.name === "epub-mcp-server") return pkg;
+    } catch {
+      // not found at this level — keep walking up
+    }
+    dir = new URL("..", dir);
+  }
+  return null;
 }
 
 /** Read current version from package.json. */
 export async function getCurrentVersion(): Promise<string> {
-  try {
-    const pkgPath = resolvePackagePath();
-    const raw = await readTextPortable(pkgPath);
-    const pkg = JSON.parse(raw) as { version: string };
-    return pkg.version;
-  } catch {
-    return "0.0.0";
-  }
+  const pkg = await findPackageJson();
+  return pkg?.version ?? "0.0.0";
 }
 
 /** Fetch the latest release tag from GitHub. */

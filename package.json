@@ -1,16 +1,24 @@
 {
   "name": "epub-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An MCP server for creating and editing EPUB novels.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
+  "bin": {
+    "epub-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE.md",
+    "README.md"
+  ],
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "build": "bun build src/index.ts --target bun --outdir dist --minify",
+    "build": "bun build src/index.ts --target node --outdir dist --minify --banner \"#!/usr/bin/env node\"",
     "start": "bun run src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

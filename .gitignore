@@ -16,8 +16,10 @@
 
 # Dependency directories
 vendor/
-dist/
 node_modules/
+
+# Note: dist/ is intentionally tracked — the npm-installable bin (package.json
+# "bin"/"exports") ships the built bundle so `npm install -g` needs no build step.
 
 # Go module cache
 .cache/go-build/
