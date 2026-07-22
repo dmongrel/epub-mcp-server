@@ -1,6 +1,6 @@
 {
   "name": "epub-mcp-server",
-  "version": "1.0.2",
+  "version": "0.0.1",
   "description": "An MCP server for creating and editing EPUB novels.",
   "license": "MIT",
   "type": "module",
@@ -32,5 +32,5 @@
     "@xmldom/xmldom": "^0.9.10",
     "fflate": "^0.8.3"
   },
-  "private": true
+  "private": false
 }

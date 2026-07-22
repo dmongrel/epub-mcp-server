@@ -39,21 +39,15 @@ If you have **Bun**, **Deno**, or **both** installed, you can run the server dir
 
 ### Option B — Global NPM Install
 
-If you prefer a traditional Node.js/NPM setup, install the package globally directly from GitHub. This downloads all dependencies locally so the server boots instantly and works 100% offline.
+If you prefer a traditional Node.js/NPM setup, install the package globally from the npm registry. This downloads all dependencies locally so the server boots instantly and works 100% offline.
 
 ```bash
-npm install -g github:dmongrel/epub-mcp-server
+npm install -g epub-mcp-server
 ```
 
 To update later: `npm update -g epub-mcp-server`
 
-> ⚠️ **Windows users:** `npm install -g github:...` clones the repo and repacks it locally before installing, and on some Windows machines this can hit a known npm/node-tar race (often triggered by antivirus real-time scanning) that silently drops files during extraction — `npm` reports success, but the installed package is missing `dist/index.js`. If `epub-mcp-server` isn't found after installing, or errors with `Cannot find module '...dist\index.js'`, install directly from the release tarball instead — it skips the git-clone step entirely and has been verified reliable on Windows:
->
-> ```bash
-> npm install -g https://github.com/dmongrel/epub-mcp-server/releases/download/v1.0.2/epub-mcp-server-1.0.2.tgz
-> ```
->
-> Grab the current tarball URL from the [Releases page](https://github.com/dmongrel/epub-mcp-server/releases) if a newer version is out.
+Because this installs a pre-built package from the registry (rather than cloning and building the repo locally), it avoids the Windows npm/node-tar `ENOENT` race that git-based (`github:user/repo`) installs are prone to.
 
 ---
 
@@ -68,7 +62,7 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
   "mcpServers": {
     "epub-mcp-server-bun": {
       "command": "bun",
-      "args": ["run", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/main/src/index.ts"]
+      "args": ["run", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/master/src/index.ts"]
     }
   }
 }
@@ -81,7 +75,7 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
   "mcpServers": {
     "epub-mcp-server-deno": {
       "command": "deno",
-      "args": ["run", "--allow-env", "--allow-read", "--allow-write", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/main/src/index.ts"]
+      "args": ["run", "--allow-env", "--allow-read", "--allow-write", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/master/src/index.ts"]
     }
   }
 }
@@ -94,11 +88,11 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
   "mcpServers": {
     "epub-mcp-server-bun": {
       "command": "bun",
-      "args": ["run", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/main/src/index.ts"]
+      "args": ["run", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/master/src/index.ts"]
     },
     "epub-mcp-server-deno": {
       "command": "deno",
-      "args": ["run", "--allow-env", "--allow-read", "--allow-write", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/main/src/index.ts"]
+      "args": ["run", "--allow-env", "--allow-read", "--allow-write", "https://raw.githubusercontent.com/dmongrel/epub-mcp-server/master/src/index.ts"]
     }
   }
 }
