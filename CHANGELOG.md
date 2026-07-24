@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.5] - 2026-07-24
+
+### Fixed
+
+- **`find_text` counted cover pages as chapters.** Front/back cover wrapper pages sit in the spine like any other content document, so without exclusion a book with a front cover would report its actual chapter 1 as chapter 2. `find_text` now excludes both (detected via the `cover` token in their `epub:type` attribute, the same convention `edit_cover`/`edit_back_cover` use when creating them), so chapter numbers always align with the book's real chapters.
+
 ## [0.0.4] - 2026-07-24
 
 ### Added

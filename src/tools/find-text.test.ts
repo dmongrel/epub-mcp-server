@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { handleFindText } from "./find-text.ts";
 import { handleEditChapter } from "./edit-chapter.ts";
+import { handleEditCover } from "./edit-cover.ts";
+import { handleEditBackCover } from "./edit-back-cover.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { writeEpub } from "../epub/write.ts";
 
@@ -126,5 +128,27 @@ describe("find_text", () => {
   test("errors when path or query is missing", async () => {
     await expect(handleFindText(fakeServer, { path: "", query: "x" })).rejects.toThrow("path is required");
     await expect(handleFindText(fakeServer, { path: "x", query: "" })).rejects.toThrow("query is required");
+  });
+
+  test("excludes front/back cover pages and numbers chapters starting from the first real chapter", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "cover-source.jpg");
+    await writeFile(sourcePath, "fake-jpeg-bytes");
+
+    // Front cover is inserted at the start of the spine, so without
+    // exclusion it would occupy chapter 1.
+    await handleEditCover(fakeServer, { action: "create", path, id: "images/cover.jpg", sourcePath });
+    await handleEditChapter(fakeServer, { action: "create", path, id: "text/ch1.xhtml", content: "# Chapter 1\n\nFox in chapter one." });
+    // Back cover is inserted at the end of the spine.
+    await handleEditBackCover(fakeServer, { action: "create", path, id: "images/back-cover.jpg", sourcePath });
+
+    const result = await handleFindText(fakeServer, { path, query: "Fox" });
+    const structured = result.structuredContent as { matches: Array<{ chapter: number }>; totalChapters: number };
+
+    expect(structured.totalChapters).toBe(1);
+    expect(structured.matches).toHaveLength(1);
+    expect(structured.matches[0]!.chapter).toBe(1);
+
+    await rm(dir, { recursive: true, force: true });
   });
 });

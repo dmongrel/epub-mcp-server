@@ -39,7 +39,7 @@ interface FindTextResult {
 export const findTextTool: EpubTool = {
   name: "find_text",
   description:
-    "Search chapter prose in an already-read EPUB for a plaintext substring or regex pattern, reporting the chapter and line number of every match. Read-only.",
+    "Search chapter prose (excluding front/back cover pages) in an already-read EPUB for a plaintext substring or regex pattern, reporting the chapter and line number of every match. Read-only.",
   inputSchema: {
     type: "object",
     properties: {
@@ -50,7 +50,7 @@ export const findTextTool: EpubTool = {
         type: "array",
         items: { type: "integer" },
         description:
-          "1-based chapter numbers (in spine reading order) to limit the search to; omit to search every chapter",
+          "1-based chapter numbers (in spine reading order, excluding cover pages) to limit the search to; omit to search every chapter",
       },
     },
     required: ["path", "query"],
@@ -62,13 +62,34 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Reports whether markup is a front- or back-cover wrapper page, per this
+ * server's own convention (see coverPageMarkup in edit-cover.ts): both are
+ * built around a <section epub:type="..."> whose space-separated epub:type
+ * tokens always include "cover" ("cover" for the front, "backmatter cover"
+ * for the back) — checked directly on the page's own markup rather than via
+ * the (optional, legacy) guide/landmarks, which aren't guaranteed present or
+ * in sync.
+ */
+function isCoverPage(markup: string): boolean {
+  const re = /epub:type\s*=\s*"([^"]*)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markup)) !== null) {
+    if (m[1]!.split(/\s+/).includes("cover")) return true;
+  }
+  return false;
+}
+
 export async function handleFindText(_server: Server, args: FindTextArgs): Promise<ToolHandlerResult> {
   if (!args.path?.trim()) throw new Error("path is required");
   if (!args.query) throw new Error("query is required");
   const abs = resolve(args.path);
 
   const { epub: e, eviction } = await epubCache.load(abs);
-  const orderedIds = summarizeEpub(abs, e).contentDocuments;
+  const orderedIds = summarizeEpub(abs, e).contentDocuments.filter((id) => {
+    const doc = e.contentDocuments[id];
+    return doc !== undefined && !isCoverPage(doc.markup);
+  });
   if (orderedIds.length === 0) throw new Error(`${JSON.stringify(abs)} has no content documents to search`);
 
   const isRegex = args.regex ?? false;
@@ -136,9 +157,12 @@ registerTool(
     'text is split into "lines" at paragraph boundaries (block-element breaks such as <p>, <h1>-<h6>, <li>) ' +
     "— line 1 is the chapter's first paragraph or heading, line 2 its second, and so on.\n\n" +
     "Chapters are searched in spine reading order and numbered from 1, matching the order read_epub's " +
-    "contentDocuments list reports. Pass chapters, a list of those 1-based numbers, to restrict the search " +
-    "to specific chapters instead of the whole book; omit it to search every chapter. An out-of-range " +
-    "chapter number fails the call outright rather than silently skipping it.\n\n" +
+    "contentDocuments list reports — except front- and back-cover wrapper pages (see edit_cover/" +
+    "edit_back_cover) are skipped entirely and never occupy a chapter number, so numbering always lines up " +
+    "with the book's actual chapters instead of counting cover pages as chapter 1 (or similar). Pass " +
+    "chapters, a list of those 1-based numbers, to restrict the search to specific chapters instead of the " +
+    "whole book; omit it to search every chapter. An out-of-range chapter number fails the call outright " +
+    "rather than silently skipping it.\n\n" +
     "Returns matches, an array of every occurrence found — each with chapter (its 1-based number), " +
     "chapterId (its content document id, for use with get_chapter/edit_chapter), line (its 1-based line " +
     "number within that chapter), and text (the full line the match was found in). A chapter with multiple " +
