@@ -26,6 +26,7 @@ import "./tools/get-navigation.ts";
 import "./tools/edit-navigation.ts";
 import "./tools/edit-chapter.ts";
 import "./tools/get-chapter.ts";
+import "./tools/find-text.ts";
 import "./tools/get-cover.ts";
 import "./tools/edit-cover.ts";
 import "./tools/edit-back-cover.ts";

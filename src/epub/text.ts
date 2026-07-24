@@ -60,6 +60,18 @@ function collectRawText(node: Node, out: string[]): void {
   }
 }
 
+/** Finds the first descendant element (depth-first) with the given local name, or undefined if none exists. */
+function findElementByLocalName(node: Node, name: string): Element | undefined {
+  for (const child of node.childNodes) {
+    if (child.nodeType !== 1) continue; // ELEMENT_NODE
+    const el = child as Element;
+    if (localName(el.tagName) === name) return el;
+    const found = findElementByLocalName(el, name);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 /**
  * Extracts the readable text from an XHTML content document's markup: tags
  * and attributes are discarded, and line breaks are inserted at block-level
@@ -79,8 +91,15 @@ export function plainText(markup: string): string {
   const root = doc.documentElement;
   if (!root) return "";
 
+  // Only the <body> is readable content — walking the whole document would
+  // also pick up <head><title> text (and any future <head> text content) as
+  // a spurious leading "paragraph" with no block-boundary of its own to
+  // separate it from the real content. Fall back to root for malformed
+  // markup with no <body> at all, rather than returning nothing.
+  const body = findElementByLocalName(root, "body") ?? root;
+
   const parts: string[] = [];
-  collectRawText(root, parts);
+  collectRawText(body, parts);
   const raw = parts.join("");
 
   const paragraphs: string[] = [];

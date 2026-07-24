@@ -58,5 +58,13 @@ describe("plainText", () => {
   test("returns an empty string for markup with no root element", () => {
     expect(plainText("")).toBe("");
   });
+
+  test("ignores <head><title> text instead of leaking it as a leading paragraph", () => {
+    expect(
+      plainText(
+        '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title></head><body><h2>Chapter 1</h2><p>Body text.</p></body></html>',
+      ),
+    ).toBe("Chapter 1\n\nBody text.");
+  });
 });
 

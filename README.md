@@ -115,7 +115,7 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
 
 ## Features
 
-**27 MCP tools** organized across 10 categories:
+**28 MCP tools** organized across 10 categories:
 
 ### EPUB Lifecycle
 - **`new_epub`** — Create a blank EPUB on disk with title, author, and cache it in memory.
@@ -130,6 +130,7 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
 - **`get_chapter`** — Read one content document by its internal id, returning both plain text and raw XHTML markup.
 - **`edit_chapter`** — Create, edit, or remove chapters. Supports markdown with auto-chapter splitting and full XHTML input.
 - **`convert_manuscript`** — Convert an entire `.txt`, `.md`, or `.html` manuscript into EPUB chapters in one call, splitting on chapter markers.
+- **`find_text`** — Search chapter prose for a plaintext substring or regex pattern, reporting the chapter and line number of every match. Optionally limit the search to specific 1-based chapter numbers.
 
 ### Metadata (Dublin Core)
 - **`get_metadata`** — Read all metadata fields: identifiers, titles, languages, creators, contributors, publishers, dates, subjects, description, rights, and custom metas.
