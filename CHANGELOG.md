@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.4] - 2026-07-24
+
+### Added
+
+- **`find_text` tool** — searches chapter prose for a plaintext substring or regex pattern, reporting the chapter, line number, and matching line for every hit. Accepts an optional list of 1-based chapter numbers (spine order) to limit the search area.
+
+### Fixed
+
+- **`plainText` leaked `<head><title>` text.** It walked the entire document instead of just `<body>`, so the title element's text appeared as a spurious leading paragraph — throwing off `find_text`'s line numbers and slightly polluting `get_chapter`'s text output too. Now only walks `<body>` (falling back to the document root for malformed markup with no `<body>`).
+
 ## [0.0.3] - 2026-07-23
 
 ### Fixed
