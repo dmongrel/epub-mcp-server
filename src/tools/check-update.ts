@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * check-update — at server start, check GitHub for a newer release.
+ * check-update — at server start, check the npm registry for a newer release.
  * Portable Bun/Deno/Node: uses the same runtime-detection pattern as src/index.ts.
  */
 
@@ -52,17 +52,15 @@ export async function getCurrentVersion(): Promise<string> {
   return pkg?.version ?? "0.0.0";
 }
 
-/** Fetch the latest release tag from GitHub. */
-async function getLatestGitHubTag(): Promise<string | null> {
+/** Fetch the latest published version from the npm registry. */
+async function getLatestNpmVersion(): Promise<string | null> {
   try {
-    const res = await fetch(
-      "https://api.github.com/repos/dmongrel/epub-mcp-server/releases/latest",
-      { headers: { "User-Agent": "mcp-server-updater" } },
-    );
+    const res = await fetch("https://registry.npmjs.org/epub-mcp-server/latest", {
+      headers: { "User-Agent": "mcp-server-updater" },
+    });
     if (!res.ok) return null;
-    const data = (await res.json()) as { tag_name: string };
-    // Strip optional 'v' prefix
-    return data.tag_name.replace(/^v/, "");
+    const data = (await res.json()) as { version: string };
+    return data.version;
   } catch {
     return null;
   }
@@ -97,7 +95,7 @@ export async function checkForUpdate(): Promise<
   { available: true; latest: string } | { available: false } | null
 > {
   const local = await getCurrentVersion();
-  const remote = await getLatestGitHubTag();
+  const remote = await getLatestNpmVersion();
   if (remote === null) return null; // network error or rate-limited
   if (isNewer(local, remote)) return { available: true, latest: remote };
   return { available: false };
