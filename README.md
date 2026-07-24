@@ -115,7 +115,7 @@ Add a configuration block to your MCP client's config file (e.g., `claude_deskto
 
 ## Features
 
-**28 MCP tools** organized across 10 categories:
+**27 MCP tools** organized across 10 categories:
 
 ### EPUB Lifecycle
 - **`new_epub`** — Create a blank EPUB on disk with title, author, and cache it in memory.
