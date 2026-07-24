@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.2] - 2026-07-23
+
+### Added
+
+- Inline markdown emphasis support in the chapter converters: `**bold**`, `*italic*`, and `***bold italic***` spans are now converted to `<strong>`/`<em>` tags in generated chapter XHTML.
+
 ## [0.0.1] - 2026-07-22
 
 Version reset to mark the switch to real npm registry publishing.

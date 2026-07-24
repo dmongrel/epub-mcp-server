@@ -222,9 +222,23 @@ export function fragmentToXHTML(f: ChapterFragment): string {
     b += "</h2>\n";
   }
   for (const para of f.body) {
-    b += `<p>${escapeXHTML(para)}</p>\n`;
+    b += `<p>${convertInlineMarkdown(escapeXHTML(para))}</p>\n`;
   }
   return b;
+}
+
+/**
+ * Converts inline "**bold**", "*italic*", and "***bold italic***" markdown
+ * spans into <strong>/<em> tags. Runs after escapeXHTML, so it only ever
+ * inserts new tags into already-escaped text rather than risking
+ * double-escaping. Bold+italic and bold are matched before italic so a lone
+ * "*" pass doesn't swallow "**" markers first.
+ */
+export function convertInlineMarkdown(s: string): string {
+  return s
+    .replace(/\*\*\*([^*]+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+?)\*/g, "<em>$1</em>");
 }
 
 /** Converts a list of ChapterFragments into a complete XHTML document for an EPUB content page. */

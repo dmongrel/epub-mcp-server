@@ -5,6 +5,7 @@ import { describe, expect, test } from "bun:test";
 import {
   autoDetectMarkdown,
   chaptersToXHTML,
+  convertInlineMarkdown,
   escapeXHTML,
   fragmentToXHTML,
   isChapterMarker,
@@ -120,6 +121,25 @@ describe("escapeXHTML", () => {
   test("escapes < and & but leaves other characters and existing entities alone", () => {
     expect(escapeXHTML("A & B < C")).toBe("A &amp; B &lt; C");
     expect(escapeXHTML("Already &mdash; escaped")).toBe("Already &mdash; escaped");
+  });
+});
+
+describe("convertInlineMarkdown", () => {
+  test("converts **bold**, *italic*, and ***bold italic*** spans to tags", () => {
+    expect(convertInlineMarkdown("This is **bold** text.")).toBe("This is <strong>bold</strong> text.");
+    expect(convertInlineMarkdown("This is *italic* text.")).toBe("This is <em>italic</em> text.");
+    expect(convertInlineMarkdown("This is ***both*** text.")).toBe("This is <strong><em>both</em></strong> text.");
+  });
+
+  test("handles multiple spans and leaves unmatched markers alone", () => {
+    expect(convertInlineMarkdown("**a** and *b* and **c**")).toBe("<strong>a</strong> and <em>b</em> and <strong>c</strong>");
+    expect(convertInlineMarkdown("a lone * asterisk")).toBe("a lone * asterisk");
+  });
+
+  test("fragmentToXHTML applies inline markdown conversion to paragraph text", () => {
+    expect(fragmentToXHTML({ number: 0, title: "", body: ["**Bold** and *italic*."] })).toBe(
+      "<p><strong>Bold</strong> and <em>italic</em>.</p>\n",
+    );
   });
 });
 
