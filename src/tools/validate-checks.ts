@@ -82,9 +82,14 @@ function flattenNCX(points: NCXNavPoint[]): NCXNavPoint[] {
  * comparing a toc against the spine: nesting is a presentation choice that
  * shouldn't count as disorder, and a chapter subdivided into several
  * fragment entries ("#part1", "#part2") is still one document in the spine.
+ *
+ * NavPoint hrefs are stored relative to pkg.baseDir, so they're resolved to
+ * archive paths here — otherwise every comparison against a spine or manifest
+ * path is a string mismatch on any book whose package document isn't at the
+ * archive root.
  */
-function tocDocumentOrder(points: NavPoint[]): string[] {
-  const flat = flattenPoints(points).map((p) => stripFragment(p.href));
+function tocDocumentOrder(pkg: Package, points: NavPoint[]): string[] {
+  const flat = flattenPoints(points).map((p) => resolveHref(pkg, p.href));
   return flat.filter((href, i) => href !== "" && href !== flat[i - 1]);
 }
 
@@ -99,7 +104,7 @@ export const tocSpineOrder: Check = (e, pkg) => {
   if (!list) return [];
 
   const spine = proseSpineDocuments(e, pkg).map((d) => d.archivePath);
-  const toc = tocDocumentOrder(list.items);
+  const toc = tocDocumentOrder(pkg, list.items);
   const spineSet = new Set(spine);
   const tocSet = new Set(toc);
   const findings: ValidateEpubFinding[] = [];
@@ -158,7 +163,7 @@ export const tocLabelHeadingMismatch: Check = (e, pkg) => {
     const labelNumber = chapterNumberFromLabel(point.label);
     if (labelNumber === 0) continue;
 
-    const archivePath = stripFragment(point.href);
+    const archivePath = resolveHref(pkg, point.href);
     const doc = e.contentDocuments[archivePath];
     if (!doc) continue; // danglingHref reports this
 
@@ -249,8 +254,8 @@ export const ncxTocDivergence: Check = (e, pkg) => {
 
   // Compared as label+target pairs in document order, so a divergence in any
   // of label, target, or order is caught by one comparison.
-  const tocPairs = flattenPoints(list.items).map((p) => `${p.label} ${stripFragment(p.href)}`);
-  const ncxPairs = flattenNCX(ncx.navMap).map((p) => `${p.label} ${stripFragment(p.src)}`);
+  const tocPairs = flattenPoints(list.items).map((p) => `${p.label} ${resolveHref(pkg, p.href)}`);
+  const ncxPairs = flattenNCX(ncx.navMap).map((p) => `${p.label} ${resolveHref(pkg, p.src)}`);
   if (tocPairs.length === ncxPairs.length && tocPairs.every((v, i) => v === ncxPairs[i])) return [];
 
   return [
@@ -297,7 +302,7 @@ export const danglingHref: Check = (e, pkg) => {
         report(
           `Navigation ${JSON.stringify(list.type)} entry`,
           point.id,
-          point.href,
+          resolveHref(pkg, point.href),
           `Call edit_navigation with action "remove" on ${JSON.stringify(point.id)}, or add the missing file with edit_chapter or edit_resource.`,
         );
       }
@@ -313,7 +318,7 @@ export const danglingHref: Check = (e, pkg) => {
       report(
         "NCX navPoint",
         point.id || ncx.id,
-        point.src,
+        resolveHref(pkg, point.src),
         "Any convert_manuscript or edit_navigation call regenerates the NCX from the table of contents, dropping targets the table of contents no longer has.",
       );
     }
@@ -537,7 +542,7 @@ export const missingNav: Check = (e, pkg) => {
 export const missingMetadata: Check = (_e, pkg) => {
   const findings: ValidateEpubFinding[] = [];
 
-  const require = (present: boolean, element: string, field: string): void => {
+  const requireField = (present: boolean, element: string, field: string): void => {
     if (present) return;
     findings.push({
       check: "missing-metadata",
@@ -548,9 +553,9 @@ export const missingMetadata: Check = (_e, pkg) => {
     });
   };
 
-  require(pkg.metadata.identifiers.length > 0, "dc:identifier", "identifier");
-  require(pkg.metadata.titles.length > 0, "dc:title", "title");
-  require(pkg.metadata.languages.length > 0, "dc:language", "language");
+  requireField(pkg.metadata.identifiers.length > 0, "dc:identifier", "identifier");
+  requireField(pkg.metadata.titles.length > 0, "dc:title", "title");
+  requireField(pkg.metadata.languages.length > 0, "dc:language", "language");
 
   if (pkg.uniqueIdentifierRef === "") {
     findings.push({

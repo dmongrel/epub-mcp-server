@@ -27,7 +27,7 @@ import { primaryNavigation } from "./get-navigation.ts";
 import { findOrCreateNavList, renumberNavPoints } from "./edit-navigation.ts";
 import { syncNavRender } from "./nav-sync.ts";
 import { deriveTocLabel } from "../epub/labels.ts";
-import { proseSpineDocuments } from "../epub/resolve.ts";
+import { proseSpineDocuments, relativeHref } from "../epub/resolve.ts";
 import type { Epub, NavList, Navigation, Package } from "../epub/types.ts";
 
 /**
@@ -56,7 +56,11 @@ export function rebuildToc(e: Epub, pkg: Package): boolean {
   list.items = proseSpineDocuments(e, pkg).map((doc) => ({
     id: "",
     label: deriveTocLabel(doc.markup, doc.archivePath),
-    href: doc.archivePath,
+    // NavPoint hrefs are stored relative to pkg.baseDir (the same convention
+    // manifest and guide hrefs use), while proseSpineDocuments reports full
+    // archive paths — so a book whose package document isn't at the archive
+    // root needs the path converted back before it's written into the toc.
+    href: relativeHref(pkg, doc.archivePath),
     type: "",
     children: [],
   }));

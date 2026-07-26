@@ -4,13 +4,13 @@
 import { describe, expect, test } from "bun:test";
 import { rebuildToc } from "./nav-rebuild.ts";
 import { newEpub } from "../epub/new-epub.ts";
-import { primaryPackage } from "../epub/resolve.ts";
+import { primaryPackage, relativeHref } from "../epub/resolve.ts";
 import type { Epub } from "../epub/types.ts";
 
 /** Adds a content document to e with a manifest item and a spine entry at the given index (default: the end). */
 function addDoc(e: Epub, archivePath: string, opfId: string, markup: string, at?: number): void {
   const pkg = primaryPackage(e)!;
-  pkg.manifest.items.push({ id: `${pkg.manifest.id}/${opfId}`, href: archivePath, mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
+  pkg.manifest.items.push({ id: `${pkg.manifest.id}/${opfId}`, href: relativeHref(pkg, archivePath), mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
   const ref = { id: "", idRef: opfId, linear: true, properties: [] };
   if (at === undefined) pkg.spine.itemRefs.push(ref);
   else pkg.spine.itemRefs.splice(at, 0, ref);
@@ -136,4 +136,45 @@ describe("rebuildToc", () => {
     expect(rebuildToc(e, primaryPackage(e)!)).toBe(true);
     expect(tocOf(e).items).toEqual([]);
   });
+
+  test("writes hrefs relative to baseDir when the package document is not at the archive root", () => {
+    // NavPoint hrefs follow the same baseDir-relative convention manifest
+    // hrefs do, while proseSpineDocuments reports full archive paths — so a
+    // book under "OEBPS/" is where writing the raw path would corrupt every
+    // link in the table of contents.
+    const e = nestedEpub("Rebuild Nested");
+    const pkg = primaryPackage(e)!;
+    addDoc(e, "OEBPS/text/ch1.xhtml", "ch1", chapterMarkup("Chapter 1: Dawn"));
+    addDoc(e, "OEBPS/text/ch2.xhtml", "ch2", chapterMarkup("Chapter 2: Dusk"));
+
+    expect(rebuildToc(e, pkg)).toBe(true);
+
+    const toc = e.navigation["OEBPS/nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+    expect(toc.items.map((i) => i.href)).toEqual(["text/ch1.xhtml", "text/ch2.xhtml"]);
+    expect(e.navigation["OEBPS/nav.xhtml"]!.markup).toContain('href="text/ch1.xhtml"');
+  });
 });
+
+/** newEpub()'s skeleton relocated so its package document lives at OEBPS/content.opf, giving a book with a non-empty baseDir. */
+function nestedEpub(title: string): Epub {
+  const e = newEpub(title, "Author");
+
+  const pkg = e.packages["content.opf"]!;
+  delete e.packages["content.opf"];
+  pkg.id = "OEBPS/content.opf";
+  pkg.baseDir = "OEBPS/";
+  e.packages["OEBPS/content.opf"] = pkg;
+  e.container.rootfiles[0]!.fullPath = "OEBPS/content.opf";
+
+  const nav = e.navigation["nav.xhtml"]!;
+  delete e.navigation["nav.xhtml"];
+  nav.id = "OEBPS/nav.xhtml";
+  e.navigation["OEBPS/nav.xhtml"] = nav;
+
+  const css = e.resources["styles/style.css"]!;
+  delete e.resources["styles/style.css"];
+  css.id = "OEBPS/styles/style.css";
+  e.resources["OEBPS/styles/style.css"] = css;
+
+  return e;
+}
