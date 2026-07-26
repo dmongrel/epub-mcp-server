@@ -52,3 +52,6 @@ Thumbs.db
 /test_fdx/
 /tests/
 /.artifacts/
+
+# Sample EPUBs kept locally for comparison against externally-produced books
+/examples/
