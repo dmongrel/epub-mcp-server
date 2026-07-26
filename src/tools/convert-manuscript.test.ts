@@ -9,6 +9,7 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { handleConvertManuscript } from "./convert-manuscript.ts";
 import { epubCache } from "./epub-cache.ts";
 import { newEpub } from "../epub/new-epub.ts";
+import { primaryPackage, proseSpineDocuments } from "../epub/resolve.ts";
 import { writeEpub } from "../epub/write.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
@@ -283,6 +284,81 @@ describe("convert_manuscript", () => {
     expect(leftoverIds).toEqual([chapter2Id]);
     const cached = epubCache.get(resolve(path))!;
     expect(cached.contentDocuments[chapter2Id]).toBeUndefined();
+
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe("convert_manuscript toc rebuild", () => {
+  test("leaves the toc in spine order and reports tocRebuilt", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "manuscript.txt");
+    await writeFile(sourcePath, "Chapter 1: Dawn\n\nFirst.\n\nChapter 2: Dusk\n\nSecond.\n", "utf-8");
+
+    const res = await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    expect((res.structuredContent as { tocRebuilt: boolean }).tocRebuilt).toBe(true);
+    const e = epubCache.get(resolve(path))!;
+    const pkg = primaryPackage(e)!;
+    const toc = e.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+    expect(toc.items.map((i) => i.href)).toEqual(proseSpineDocuments(e, pkg).map((d) => d.archivePath));
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("a replaced chapter's new title reaches its toc entry", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "manuscript.txt");
+    await writeFile(sourcePath, "Chapter 1: Old Title\n\nFirst.\n", "utf-8");
+    await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    await writeFile(sourcePath, "Chapter 1: New Title\n\nFirst, revised.\n", "utf-8");
+    await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    const e = epubCache.get(resolve(path))!;
+    const toc = e.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+    expect(toc.items).toHaveLength(1);
+    expect(toc.items[0]?.label).toBe("Chapter 1: New Title");
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("matches existing chapters by their headings even when toc labels are stale", async () => {
+    const { dir, path } = await writeTempBook();
+    const sourcePath = join(dir, "manuscript.txt");
+    await writeFile(sourcePath, "Chapter 1\n\nFirst.\n", "utf-8");
+    await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    // Simulate a toc gone stale — edit_navigation renamed the entry so it no
+    // longer names a chapter number at all.
+    const e = epubCache.get(resolve(path))!;
+    const toc = e.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+    toc.items[0]!.label = "Opening";
+
+    await writeFile(sourcePath, "Chapter 1\n\nFirst, revised.\n", "utf-8");
+    const res = await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    const result = res.structuredContent as { createdIds?: string[]; replacedIds?: string[] };
+    expect(result.replacedIds).toHaveLength(1);
+    expect(result.createdIds).toBeUndefined();
+    expect(Object.keys(epubCache.get(resolve(path))!.contentDocuments)).toHaveLength(1);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("reports tocRebuilt false for a book with no navigation document", async () => {
+    const { dir, path } = await writeTempBook();
+    const { epub: e } = await epubCache.load(resolve(path));
+    const pkg = primaryPackage(e)!;
+    delete e.navigation["nav.xhtml"];
+    const navItem = pkg.manifest.items.find((i) => i.properties.includes("nav"));
+    if (navItem) navItem.properties = [];
+    const sourcePath = join(dir, "manuscript.txt");
+    await writeFile(sourcePath, "Chapter 1\n\nFirst.\n", "utf-8");
+
+    const res = await handleConvertManuscript(makeFakeServer(), { path, sourcePath });
+
+    expect((res.structuredContent as { tocRebuilt: boolean }).tocRebuilt).toBe(false);
 
     await rm(dir, { recursive: true, force: true });
   });

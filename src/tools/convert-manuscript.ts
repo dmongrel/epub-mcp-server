@@ -15,11 +15,12 @@ import { archiveIdInUse } from "./edit-resource.ts";
 import { deleteChapterDocument, insertChapter } from "./edit-chapter.ts";
 import { epubCache } from "./epub-cache.ts";
 import { evictionNote } from "./eviction.ts";
-import { primaryNavigation } from "./get-navigation.ts";
 import { detectManuscriptFormat, splitManuscriptChapters, stripHtmlTags } from "./manuscript-parse.ts";
+import { rebuildToc } from "./nav-rebuild.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
-import { primaryPackage } from "../epub/resolve.ts";
+import { chapterNumberFromLabel, deriveTocLabel } from "../epub/labels.ts";
+import { primaryPackage, proseSpineDocuments } from "../epub/resolve.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
 interface ConvertManuscriptArgs {
@@ -35,6 +36,7 @@ interface ConvertManuscriptResult {
   replacedIds?: string[];
   leftoverIds?: string[];
   leftoverAction?: string;
+  tocRebuilt: boolean;
 }
 
 export const convertManuscriptTool: EpubTool = {
@@ -49,8 +51,6 @@ export const convertManuscriptTool: EpubTool = {
     },
   },
 };
-
-const MANUSCRIPT_TOC_CHAPTER_LABEL = /^chapter\s+(\d+)\b/i;
 
 export async function handleConvertManuscript(server: Server, args: ConvertManuscriptArgs): Promise<ToolHandlerResult> {
   const path = await resolveArg(server, args.path, "path", "Which .epub file should be converted into? Provide its filesystem path.");
@@ -111,6 +111,11 @@ export async function handleConvertManuscript(server: Server, args: ConvertManus
     }
   }
 
+  // Rebuilt once, at the end, rather than per chapter: the toc is a pure
+  // function of the finished spine, and every create above has already
+  // appended its own (now superseded) entry via insertChapter.
+  const tocRebuilt = rebuildToc(e, pkg);
+
   epubCache.markDirty(abs);
 
   const result: ConvertManuscriptResult = {
@@ -121,35 +126,41 @@ export async function handleConvertManuscript(server: Server, args: ConvertManus
     replacedIds: replacedIds.length > 0 ? replacedIds : undefined,
     leftoverIds: leftoverIds.length > 0 ? leftoverIds : undefined,
     leftoverAction: leftoverIds.length > 0 ? leftoverAction : undefined,
+    tocRebuilt,
   };
 
   let summary = `Converted ${JSON.stringify(sourcePath)} into ${JSON.stringify(abs)}: ${fragments.length} chapter(s) found (${createdIds.length} created, ${replacedIds.length} replaced).`;
   if (leftoverIds.length > 0) {
     summary += ` ${leftoverIds.length} existing chapter(s) past the new source's range were ${leftoverVerb(leftoverAction)}.`;
   }
+  summary += tocRebuilt
+    ? " The table of contents was rebuilt from the spine."
+    : " This book has no navigation document, so no table of contents was rebuilt.";
   summary += ` Call save_epub to persist this to disk.${evictionNote(eviction)}`;
 
   return { content: [{ type: "text", text: summary }], structuredContent: result as unknown as Record<string, unknown> };
 }
 
-/** Scans e's primary "toc" navigation list for entries whose label names a chapter number, mapping that number to the content document it targets. Returns an empty map if the book has no EPUB 3 navigation document. */
+/**
+ * Maps each chapter number already in the book to the archive path of the
+ * content document carrying it, read from each prose document's own heading
+ * in spine order.
+ *
+ * Deliberately not read from the table of contents: this call rebuilds the
+ * toc at the end, so treating it as an input too would make it both cause
+ * and effect, and it can be stale in the meantime — edit_chapter's "edit"
+ * action changes a chapter's heading without touching its toc label, and
+ * edit_navigation can rename an entry to anything at all. The spine plus
+ * each document's markup is the only source of truth here.
+ *
+ * Documents whose heading names no chapter number are omitted, so unnumbered
+ * front matter never claims a number a manuscript fragment might match.
+ */
 function existingChaptersByNumber(e: Epub, pkg: Package): Map<number, string> {
   const result = new Map<number, string>();
-  let nav;
-  try {
-    nav = primaryNavigation(e, pkg);
-  } catch {
-    return result;
-  }
-  for (const list of nav.lists) {
-    if (list.type !== "toc") continue;
-    for (const item of list.items) {
-      const m = MANUSCRIPT_TOC_CHAPTER_LABEL.exec(item.label.trim());
-      if (!m || item.href === "") continue;
-      const num = Number.parseInt(m[1]!, 10);
-      const archivePath = item.href;
-      if (archivePath) result.set(num, archivePath);
-    }
+  for (const doc of proseSpineDocuments(e, pkg)) {
+    const number = chapterNumberFromLabel(deriveTocLabel(doc.markup, doc.archivePath));
+    if (number > 0 && !result.has(number)) result.set(number, doc.archivePath);
   }
   return result;
 }
@@ -232,11 +243,20 @@ registerTool(
     "whole file becomes a single chapter. .html sources are stripped of tags (and <script>/<style> " +
     "blocks) before splitting. Each chapter chunk is rendered into an XHTML content document the same way " +
     "edit_chapter's markdown parsing does.\n\n" +
-    'If a parsed chapter\'s number matches an existing chapter already in the book (matched against the ' +
-    'navigation document\'s "toc" entries, e.g. a "Chapter 12" or "Chapter 12: Old Title" label), that ' +
-    "existing content document's markup is replaced in place rather than duplicated. Numbers not already " +
-    "present are appended as new chapters, manifest/spine/toc wiring included, same as edit_chapter's " +
-    "create action.\n\n" +
+    "If a parsed chapter's number matches an existing chapter already in the book — matched against the " +
+      "chapter number in each existing chapter's own heading, in spine order, not against its " +
+      "table-of-contents label — that existing content document's markup is replaced in place rather than " +
+      "duplicated. Numbers not already present are appended as new chapters, manifest and spine wiring " +
+      "included, same as edit_chapter's create action.\n\n" +
+    "When every chapter has been written, the table of contents is rebuilt from scratch: one flat entry " +
+      "per chapter, in spine reading order, each labelled from that chapter's own heading (falling back to " +
+      "its <title>, then to its file name). Front and back cover pages are skipped. The legacy EPUB 2 NCX, " +
+      "if the book has one, is regenerated to match, and the landmarks and page-list navs are left alone. " +
+      "Because the rebuild is wholesale, any manual nesting or renaming previously applied to the table of " +
+      "contents with edit_navigation is discarded — reapply it after converting, or use edit_chapter " +
+      "instead of convert_manuscript when you want incremental changes that preserve a curated table of " +
+      "contents. Reported as tocRebuilt, which is false only when the book has no navigation document at " +
+      "all.\n\n" +
     "If the source has fewer chapters than the book already had — its highest chapter number is lower " +
     "than some existing chapter's — those existing chapters past that range are left untouched by default " +
     "and reported as leftover. The user is prompted once, asking whether to keep or delete all of them; a " +
