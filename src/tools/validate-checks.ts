@@ -18,9 +18,10 @@
  * whose target doesn't exist, for instance, because danglingHref reports it.
  */
 import { primaryNavigation } from "./get-navigation.ts";
+import { archiveIdInUse } from "./edit-resource.ts";
 import { chapterNumberFromLabel, deriveTocLabel } from "../epub/labels.ts";
-import { ncxItem, proseSpineDocuments, resolveHref } from "../epub/resolve.ts";
-import type { Epub, NCXNavPoint, NavList, NavPoint, Package } from "../epub/types.ts";
+import { manifestItemByHref, manifestItemById, ncxItem, proseSpineDocuments, resolveHref } from "../epub/resolve.ts";
+import type { Epub, ManifestItem, NCXNavPoint, NavList, NavPoint, Package } from "../epub/types.ts";
 
 /** One problem validate_epub found, with the tool call that would fix it. */
 export interface ValidateEpubFinding {
@@ -259,4 +260,188 @@ export const ncxTocDivergence: Check = (e, pkg) => {
       remedy: "Any convert_manuscript or edit_navigation call regenerates the NCX from the table of contents; rerun one of them to bring the two back into agreement.",
     },
   ];
+};
+
+/** Strips the "<manifest id>/" prefix from a ManifestItem's ArchiveId, leaving the bare opf:id a spine itemref's idRef would name. */
+function manifestOpfId(pkg: Package, item: ManifestItem): string {
+  const prefix = pkg.manifest.id + "/";
+  return item.id.startsWith(prefix) ? item.id.slice(prefix.length) : item.id;
+}
+
+/**
+ * Every navigational target — table of contents, NCX, guide, landmarks —
+ * must name a file the archive actually contains. A dangling target is a
+ * dead link in the reader's table of contents, and it hides other problems:
+ * checks that compare a toc entry against its document can't run at all.
+ */
+export const danglingHref: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  const report = (source: string, id: string, target: string, remedy: string): void => {
+    const path = stripFragment(target);
+    if (path === "" || archiveIdInUse(e, path)) return;
+    findings.push({
+      check: "dangling-href",
+      severity: "error",
+      message: `${source} ${JSON.stringify(id)} targets ${JSON.stringify(target)}, which is not a file in this EPUB.`,
+      ids: [id],
+      remedy,
+    });
+  };
+
+  try {
+    for (const list of primaryNavigation(e, pkg).lists) {
+      for (const point of flattenPoints(list.items)) {
+        report(
+          `Navigation ${JSON.stringify(list.type)} entry`,
+          point.id,
+          point.href,
+          `Call edit_navigation with action "remove" on ${JSON.stringify(point.id)}, or add the missing file with edit_chapter or edit_resource.`,
+        );
+      }
+    }
+  } catch {
+    // missingNav reports a book with no navigation document
+  }
+
+  const item = ncxItem(pkg);
+  const ncx = item ? e.nCXs[resolveHref(pkg, item.href)] : undefined;
+  if (ncx) {
+    for (const point of flattenNCX(ncx.navMap)) {
+      report(
+        "NCX navPoint",
+        point.id || ncx.id,
+        point.src,
+        "Any convert_manuscript or edit_navigation call regenerates the NCX from the table of contents, dropping targets the table of contents no longer has.",
+      );
+    }
+  }
+
+  for (const ref of pkg.guide?.references ?? []) {
+    report(
+      "Guide reference",
+      ref.id,
+      resolveHref(pkg, ref.href),
+      `Call edit_guide with action "remove" on ${JSON.stringify(ref.id)}, or add the missing file with edit_chapter or edit_resource.`,
+    );
+  }
+
+  return findings;
+};
+
+/** Every spine entry must name a manifest item; one that doesn't places a file that doesn't exist into the reading order. */
+export const spineMissingManifestItem: Check = (_e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+  for (const ref of pkg.spine.itemRefs) {
+    if (manifestItemById(pkg, ref.idRef)) continue;
+    findings.push({
+      check: "spine-missing-manifest-item",
+      severity: "error",
+      message: `Spine entry ${JSON.stringify(ref.id)} references manifest item id ${JSON.stringify(ref.idRef)}, which does not exist.`,
+      ids: [ref.id],
+      remedy: `Call edit_spine with action "remove" on ${JSON.stringify(ref.id)}, or edit_manifest with action "create" to add an item with id ${JSON.stringify(ref.idRef)}.`,
+    });
+  }
+  return findings;
+};
+
+/** Every manifest item must correspond to a file in the archive — the manifest is the exhaustive list of what the rendition contains, so an entry for a file that isn't there makes the package invalid. */
+export const manifestMissingFile: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+  for (const item of pkg.manifest.items) {
+    const path = resolveHref(pkg, item.href);
+    if (path !== "" && archiveIdInUse(e, path)) continue;
+    findings.push({
+      check: "manifest-missing-file",
+      severity: "error",
+      message: `Manifest item ${JSON.stringify(item.id)} points at ${JSON.stringify(item.href)}, which is not a file in this EPUB.`,
+      ids: [item.id],
+      remedy: `Call edit_manifest with action "remove" on ${JSON.stringify(item.id)}, or supply the missing file with edit_resource or edit_chapter.`,
+    });
+  }
+  return findings;
+};
+
+/**
+ * Every content document should be listed in the manifest and placed in the
+ * spine. One that isn't still ships inside the archive but no linear read
+ * ever reaches it — usually a chapter half-removed, or one added without its
+ * wiring. A warning, since a document deliberately reached only by an
+ * internal link (a footnotes page) is legitimate.
+ */
+export const orphanContentDocument: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  const inSpine = new Set<string>();
+  for (const ref of pkg.spine.itemRefs) {
+    const item = manifestItemById(pkg, ref.idRef);
+    if (item) inSpine.add(resolveHref(pkg, item.href));
+  }
+
+  for (const path of Object.keys(e.contentDocuments).sort()) {
+    const item = manifestItemByHref(pkg, path);
+    if (!item) {
+      findings.push({
+        check: "orphan-content-document",
+        severity: "warning",
+        message: `Content document ${path} is not listed in the manifest, so it is not part of this rendition.`,
+        ids: [path],
+        remedy: `Call edit_manifest with action "create" to list it, or edit_chapter with action "remove" on ${JSON.stringify(path)} to delete it.`,
+      });
+      continue;
+    }
+    if (inSpine.has(path)) continue;
+    findings.push({
+      check: "orphan-content-document",
+      severity: "warning",
+      message: `Content document ${path} is in the manifest but not the spine, so a linear read never reaches it.`,
+      ids: [path],
+      remedy: `Call edit_spine with action "create" to place it in the reading order, or edit_chapter with action "remove" on ${JSON.stringify(path)} to delete it.`,
+    });
+  }
+
+  return findings;
+};
+
+/** Manifest ids, spine entries, and manifest hrefs must each be unique — a duplicate makes every reference to it ambiguous, and which one wins is up to the reading system. */
+export const duplicateId: Check = (_e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  const repeated = (values: string[]): string[] => {
+    const counts = new Map<string, number>();
+    for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+    return [...counts].filter(([, n]) => n > 1).map(([v]) => v).sort();
+  };
+
+  for (const id of repeated(pkg.manifest.items.map((i) => i.id))) {
+    findings.push({
+      check: "duplicate-id",
+      severity: "error",
+      message: `Manifest id ${JSON.stringify(id)} is used by more than one item.`,
+      ids: [id],
+      remedy: `Call edit_manifest with action "remove" on the redundant item, or action "edit" to give it a distinct id.`,
+    });
+  }
+
+  for (const idRef of repeated(pkg.spine.itemRefs.map((r) => r.idRef))) {
+    findings.push({
+      check: "duplicate-id",
+      severity: "error",
+      message: `The spine places manifest item ${JSON.stringify(idRef)} into the reading order more than once.`,
+      ids: [idRef],
+      remedy: `Call edit_spine with action "remove" on the redundant entry.`,
+    });
+  }
+
+  for (const href of repeated(pkg.manifest.items.map((i) => resolveHref(pkg, i.href)))) {
+    findings.push({
+      check: "duplicate-id",
+      severity: "error",
+      message: `More than one manifest item points at ${href}.`,
+      ids: [href],
+      remedy: `Call edit_manifest with action "remove" on the redundant item.`,
+    });
+  }
+
+  return findings;
 };

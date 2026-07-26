@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "bun:test";
-import { chapterNumberSequence, ncxTocDivergence, tocLabelHeadingMismatch, tocSpineOrder } from "./validate-checks.ts";
+import {
+  chapterNumberSequence,
+  danglingHref,
+  duplicateId,
+  manifestMissingFile,
+  ncxTocDivergence,
+  orphanContentDocument,
+  spineMissingManifestItem,
+  tocLabelHeadingMismatch,
+  tocSpineOrder,
+} from "./validate-checks.ts";
 import { rebuildToc } from "./nav-rebuild.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
@@ -213,5 +223,145 @@ describe("ncxTocDivergence", () => {
     addNCX(e, [{ label: "Chapter 1: Dawn", src: "text/ch1.xhtml" }]);
 
     expect(ncxTocDivergence(e, primaryPackage(e)!)).toHaveLength(1);
+  });
+});
+
+describe("danglingHref", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Dangling Clean");
+    expect(danglingHref(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a toc entry targeting a file that does not exist", () => {
+    const e = cleanBook("Dangling Toc");
+    tocOf(e).items[0]!.href = "text/ghost.xhtml";
+
+    const findings = danglingHref(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "dangling-href", severity: "error" });
+    expect(findings[0]!.remedy).toContain("edit_navigation");
+  });
+
+  test("ignores the fragment when resolving a target", () => {
+    const e = cleanBook("Dangling Fragment");
+    tocOf(e).items[0]!.href = "text/ch1.xhtml#section-2";
+
+    expect(danglingHref(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a guide reference targeting a file that does not exist", () => {
+    const e = cleanBook("Dangling Guide");
+    const pkg = primaryPackage(e)!;
+    pkg.guide = { id: `${pkg.id}#guide`, references: [{ id: "g1", type: "cover", title: "Cover", href: "text/ghost.xhtml" }] };
+
+    const findings = danglingHref(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.remedy).toContain("edit_guide");
+  });
+});
+
+describe("spineMissingManifestItem", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Spine Clean");
+    expect(spineMissingManifestItem(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a spine entry naming a manifest item that does not exist", () => {
+    const e = cleanBook("Spine Ghost");
+    primaryPackage(e)!.spine.itemRefs.push({ id: "sp-ghost", idRef: "ghost", linear: true, properties: [] });
+
+    const findings = spineMissingManifestItem(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "spine-missing-manifest-item", severity: "error", ids: ["sp-ghost"] });
+  });
+});
+
+describe("manifestMissingFile", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Manifest Clean");
+    expect(manifestMissingFile(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a manifest item whose file is absent", () => {
+    const e = cleanBook("Manifest Ghost");
+    const pkg = primaryPackage(e)!;
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ghost`, href: "images/ghost.jpg", mediaType: "image/jpeg", properties: [], fallback: "", mediaOverlay: "" });
+
+    const findings = manifestMissingFile(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "manifest-missing-file", severity: "error" });
+    expect(findings[0]!.message).toContain("images/ghost.jpg");
+  });
+});
+
+describe("orphanContentDocument", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Orphan Clean");
+    expect(orphanContentDocument(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a content document missing from the manifest", () => {
+    const e = cleanBook("Orphan Unmanifested");
+    e.contentDocuments["text/loose.xhtml"] = { id: "text/loose.xhtml", mediaType: "application/xhtml+xml", markup: chapterMarkup("Chapter 9") };
+
+    const findings = orphanContentDocument(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "orphan-content-document", severity: "warning", ids: ["text/loose.xhtml"] });
+    expect(findings[0]!.message).toContain("manifest");
+  });
+
+  test("reports a manifested content document that the spine never reaches", () => {
+    const e = cleanBook("Orphan Unspined");
+    const pkg = primaryPackage(e)!;
+    pkg.spine.itemRefs = pkg.spine.itemRefs.filter((r) => r.idRef !== "ch2");
+
+    const findings = orphanContentDocument(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.ids).toEqual(["text/ch2.xhtml"]);
+    expect(findings[0]!.message).toContain("spine");
+  });
+});
+
+describe("duplicateId", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Dupe Clean");
+    expect(duplicateId(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a manifest id used twice", () => {
+    const e = cleanBook("Dupe Manifest Id");
+    const pkg = primaryPackage(e)!;
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ch1`, href: "text/other.xhtml", mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
+    e.contentDocuments["text/other.xhtml"] = { id: "text/other.xhtml", mediaType: "application/xhtml+xml", markup: chapterMarkup("Chapter 3") };
+
+    const findings = duplicateId(e, pkg);
+
+    expect(findings.some((f) => f.message.includes("Manifest id"))).toBe(true);
+    expect(findings.every((f) => f.check === "duplicate-id" && f.severity === "error")).toBe(true);
+  });
+
+  test("reports a spine entry repeated", () => {
+    const e = cleanBook("Dupe Spine");
+    primaryPackage(e)!.spine.itemRefs.push({ id: "sp-again", idRef: "ch1", linear: true, properties: [] });
+
+    const findings = duplicateId(e, primaryPackage(e)!);
+
+    expect(findings.some((f) => f.message.includes("more than once"))).toBe(true);
+  });
+
+  test("reports two manifest items pointing at the same file", () => {
+    const e = cleanBook("Dupe Href");
+    const pkg = primaryPackage(e)!;
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ch1-again`, href: "text/ch1.xhtml", mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
+
+    const findings = duplicateId(e, pkg);
+
+    expect(findings.some((f) => f.message.includes("text/ch1.xhtml"))).toBe(true);
   });
 });
