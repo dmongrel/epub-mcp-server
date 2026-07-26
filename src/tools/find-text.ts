@@ -12,7 +12,7 @@ import { evictionNote } from "./eviction.ts";
 import { summarizeEpub } from "./read-epub.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
-import { plainText } from "../epub/text.ts";
+import { isCoverPage, plainText } from "../epub/text.ts";
 
 interface FindTextArgs {
   path: string;
@@ -60,24 +60,6 @@ export const findTextTool: EpubTool = {
 /** Escapes every character with special meaning in a regular expression, so a literal string can be matched via RegExp. */
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Reports whether markup is a front- or back-cover wrapper page, per this
- * server's own convention (see coverPageMarkup in edit-cover.ts): both are
- * built around a <section epub:type="..."> whose space-separated epub:type
- * tokens always include "cover" ("cover" for the front, "backmatter cover"
- * for the back) — checked directly on the page's own markup rather than via
- * the (optional, legacy) guide/landmarks, which aren't guaranteed present or
- * in sync.
- */
-function isCoverPage(markup: string): boolean {
-  const re = /epub:type\s*=\s*"([^"]*)"/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(markup)) !== null) {
-    if (m[1]!.split(/\s+/).includes("cover")) return true;
-  }
-  return false;
 }
 
 export async function handleFindText(_server: Server, args: FindTextArgs): Promise<ToolHandlerResult> {
