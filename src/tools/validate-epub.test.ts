@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -15,20 +15,10 @@ import { writeEpub } from "../epub/write.ts";
 
 const fakeServer = {} as Server;
 
-/**
- * newEpub's skeleton sets uniqueIdentifierRef to "uid", but the identifier
- * it actually creates carries opf:id "bookid" — the two never match, which
- * missingMetadata correctly reports as a genuine defect (a real, pre-existing
- * bug in src/epub/new-epub.ts, out of scope here; see validate-checks.test.ts's
- * cleanBook for the same workaround). Aligning them here keeps a freshly
- * created test book clean of that unrelated defect.
- */
 async function newTestEpub(title: string): Promise<{ dir: string; path: string }> {
   const dir = await mkdtemp(join(tmpdir(), "epub-validate-epub-test-"));
   const path = join(dir, "book.epub");
-  const e = newEpub(title, "Author");
-  primaryPackage(e)!.uniqueIdentifierRef = "bookid";
-  await writeEpub(e, path);
+  await writeEpub(newEpub(title, "Author"), path);
   return { dir, path };
 }
 
@@ -60,6 +50,8 @@ describe("validate_epub", () => {
     expect(result.warningCount).toBe(0);
     expect(result.findings).toEqual([]);
     expect(res.content[0]!.text).toContain("no problems found");
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("reports a misaligned toc as an error, with a remedy", async () => {
@@ -77,6 +69,8 @@ describe("validate_epub", () => {
     const finding = result.findings[0]!;
     expect(finding.check).toBe("toc-label-heading-mismatch");
     expect(finding.remedy).toContain("edit_navigation");
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("runs only the requested checks", async () => {
@@ -87,7 +81,6 @@ describe("validate_epub", () => {
     const dir = await mkdtemp(join(tmpdir(), "epub-validate-epub-test-"));
     const path = join(dir, "book.epub");
     const e = newEpub("Validate Subset", "Author");
-    primaryPackage(e)!.uniqueIdentifierRef = "bookid";
     primaryPackage(e)!.spine.itemRefs = [];
     await writeEpub(e, path);
 
@@ -95,16 +88,20 @@ describe("validate_epub", () => {
 
     expect(result.checksRun).toEqual(["empty-spine"]);
     expect(result.findings.map((f) => f.check)).toEqual(["empty-spine"]);
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("rejects an unknown check name, naming the valid ones", async () => {
-    const { path } = await newTestEpub("Validate Unknown Check");
+    const { path, dir } = await newTestEpub("Validate Unknown Check");
 
     await expect(handleValidateEpub(fakeServer, { path, checks: ["no-such-check"] })).rejects.toThrow("toc-spine-order");
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("counts errors and warnings separately", async () => {
-    const { path } = await newTestEpub("Validate Counts");
+    const { path, dir } = await newTestEpub("Validate Counts");
     await epubCache.load(resolve(path));
     const e = epubCache.get(resolve(path))!;
     // newEpub()'s spine always carries one itemref for the nav document
@@ -120,10 +117,12 @@ describe("validate_epub", () => {
     expect(result.errorCount).toBeGreaterThan(0);
     expect(result.warningCount).toBeGreaterThan(0);
     expect(result.errorCount + result.warningCount).toBe(result.findings.length);
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("changes nothing — the cache stays clean", async () => {
-    const { path } = await newTestEpub("Validate Read Only");
+    const { path, dir } = await newTestEpub("Validate Read Only");
     await epubCache.load(resolve(path));
     const before = JSON.stringify(primaryPackage(epubCache.get(resolve(path))!)!.spine);
 
@@ -132,5 +131,7 @@ describe("validate_epub", () => {
     const status = epubCache.entries().find((entry) => entry.path === resolve(path));
     expect(status?.dirty).toBe(false);
     expect(JSON.stringify(primaryPackage(epubCache.get(resolve(path))!)!.spine)).toBe(before);
+
+    await rm(dir, { recursive: true, force: true });
   });
 });

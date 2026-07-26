@@ -23,39 +23,65 @@ import {
 } from "./validate-checks.ts";
 import { rebuildToc } from "./nav-rebuild.ts";
 import { newEpub } from "../epub/new-epub.ts";
-import { primaryPackage } from "../epub/resolve.ts";
+import { primaryPackage, relativeHref } from "../epub/resolve.ts";
 import type { Epub } from "../epub/types.ts";
 
-export function chapterMarkup(heading: string): string {
+function chapterMarkup(heading: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title></head><body><h2>${heading}</h2><p>Text.</p></body></html>`;
 }
 
-/** Adds a content document with a manifest item and a spine entry at the end. */
-export function addDoc(e: Epub, archivePath: string, opfId: string, markup: string): void {
+/** Adds a content document with a manifest item and a spine entry at the end. The manifest href is written relative to the package's baseDir, as a real package document's would be. */
+function addDoc(e: Epub, archivePath: string, opfId: string, markup: string): void {
   const pkg = primaryPackage(e)!;
-  pkg.manifest.items.push({ id: `${pkg.manifest.id}/${opfId}`, href: archivePath, mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
+  pkg.manifest.items.push({ id: `${pkg.manifest.id}/${opfId}`, href: relativeHref(pkg, archivePath), mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
   pkg.spine.itemRefs.push({ id: "", idRef: opfId, linear: true, properties: [] });
   e.contentDocuments[archivePath] = { id: archivePath, mediaType: "application/xhtml+xml", markup };
 }
 
 /** A two-chapter book whose toc has been rebuilt, so every check should pass. */
-export function cleanBook(title: string): Epub {
+function cleanBook(title: string): Epub {
   const e = newEpub(title, "Author");
-  // newEpub's skeleton sets uniqueIdentifierRef to "uid", but the identifier
-  // it actually creates carries opf:id "bookid" (see the literal id string
-  // below) — the two never match, which missingMetadata correctly reports
-  // as a genuine defect. Align them here so a freshly-created book is
-  // clean, the same way a real producer's identifier and unique-identifier
-  // attribute agree.
-  primaryPackage(e)!.uniqueIdentifierRef = "bookid";
   addDoc(e, "text/ch1.xhtml", "ch1", chapterMarkup("Chapter 1: Dawn"));
   addDoc(e, "text/ch2.xhtml", "ch2", chapterMarkup("Chapter 2: Dusk"));
   rebuildToc(e, primaryPackage(e)!);
   return e;
 }
 
-export function tocOf(e: Epub) {
-  return e.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
+function tocOf(e: Epub) {
+  return e.navigation[Object.keys(e.navigation)[0]!]!.lists.find((l) => l.type === "toc")!;
+}
+
+/**
+ * The same clean two-chapter book, but with its package document at
+ * OEBPS/content.opf instead of the archive root — the layout most real EPUBs
+ * use, and the one that catches any check comparing a baseDir-relative href
+ * against a full archive path. Built by relocating newEpub()'s skeleton,
+ * since newEpub hardcodes baseDir "".
+ */
+function nestedCleanBook(title: string): Epub {
+  const e = newEpub(title, "Author");
+
+  const pkg = e.packages["content.opf"]!;
+  delete e.packages["content.opf"];
+  pkg.id = "OEBPS/content.opf";
+  pkg.baseDir = "OEBPS/";
+  e.packages["OEBPS/content.opf"] = pkg;
+  e.container.rootfiles[0]!.fullPath = "OEBPS/content.opf";
+
+  const nav = e.navigation["nav.xhtml"]!;
+  delete e.navigation["nav.xhtml"];
+  nav.id = "OEBPS/nav.xhtml";
+  e.navigation["OEBPS/nav.xhtml"] = nav;
+
+  const css = e.resources["styles/style.css"]!;
+  delete e.resources["styles/style.css"];
+  css.id = "OEBPS/styles/style.css";
+  e.resources["OEBPS/styles/style.css"] = css;
+
+  addDoc(e, "OEBPS/text/ch1.xhtml", "ch1", chapterMarkup("Chapter 1: Dawn"));
+  addDoc(e, "OEBPS/text/ch2.xhtml", "ch2", chapterMarkup("Chapter 2: Dusk"));
+  rebuildToc(e, pkg);
+  return e;
 }
 
 describe("tocSpineOrder", () => {
@@ -593,6 +619,29 @@ describe("CHECKS", () => {
   test("a clean book trips no check at all", () => {
     const e = cleanBook("Registry Clean");
     const pkg = primaryPackage(e)!;
+    expect(Object.values(CHECKS).flatMap((check) => check(e, pkg))).toEqual([]);
+  });
+
+  test("a clean book whose package document is not at the archive root trips no check either", () => {
+    // Every toc and NCX href in such a book is relative to "OEBPS/", so a
+    // check comparing one directly against a spine or manifest archive path
+    // reports a false positive on an otherwise-valid book.
+    const e = nestedCleanBook("Registry Clean Nested");
+    const pkg = primaryPackage(e)!;
+    expect(pkg.baseDir).toBe("OEBPS/");
+    expect(tocOf(e).items.map((i) => i.href)).toEqual(["text/ch1.xhtml", "text/ch2.xhtml"]);
+    expect(Object.values(CHECKS).flatMap((check) => check(e, pkg))).toEqual([]);
+  });
+
+  test("the NCX of a book below the archive root is compared on resolved paths too", () => {
+    const e = nestedCleanBook("Registry Nested NCX");
+    const pkg = primaryPackage(e)!;
+    pkg.spine.tocRef = "ncx";
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/ncx`, href: "toc.ncx", mediaType: "application/x-dtbncx+xml", properties: [], fallback: "", mediaOverlay: "" });
+    e.nCXs["OEBPS/toc.ncx"] = { id: "OEBPS/toc.ncx", markup: "", navMap: [] };
+    rebuildToc(e, pkg);
+
+    expect(e.nCXs["OEBPS/toc.ncx"]!.navMap.map((p) => p.src)).toEqual(["text/ch1.xhtml", "text/ch2.xhtml"]);
     expect(Object.values(CHECKS).flatMap((check) => check(e, pkg))).toEqual([]);
   });
 });

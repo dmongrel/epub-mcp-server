@@ -36,7 +36,7 @@ export function newEpub(title: string, author: string): Epub {
     id: "content.opf",
     baseDir: "",
     version: "3.0",
-    uniqueIdentifierRef: "uid",
+    uniqueIdentifierRef: "bookid",
     lang: "en",
     metadata: {
       id: "content.opf#metadata",
