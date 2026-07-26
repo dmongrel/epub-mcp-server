@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.0] - 2026-07-25
+
+### Added
+
+- `validate_epub`: a read-only tool that checks an EPUB's table of contents, spine, manifest, and chapter text against each other and against the spec. Reports misalignment (a toc entry labelled "Chapter 5" pointing at chapter 7), dangling references, duplicate ids, orphaned chapters, malformed XHTML, and missing required metadata. Every finding names the tool call that fixes it. Runs all 16 checks by default, or a named subset.
+
+### Changed
+
+- `convert_manuscript` now rebuilds the table of contents from scratch when it finishes, instead of patching it chapter by chapter: one flat entry per chapter, in spine reading order, labelled from each chapter's own heading. Cover pages are skipped and the legacy NCX is regenerated to match. This fixes tables of contents that drifted out of spine order in books with a back cover, and chapters whose title changed but whose toc entry didn't. Manual nesting or renaming applied with `edit_navigation` does not survive a conversion — use `edit_chapter` for incremental changes that preserve a curated table of contents.
+- `convert_manuscript` matches manuscript chapters against existing ones by the chapter number in each chapter's own heading, rather than by its table-of-contents label, which could be stale.
+- `edit_chapter` is unchanged: `create` and `remove` still sync the table of contents incrementally.
+
+### Fixed
+
+- `save_epub` no longer inserts a blank placeholder chapter into a book that has none. Saving a new EPUB before adding content used to create `text/chapter-1.xhtml`, which then collided with the real chapter 1 on the next `convert_manuscript` — pushing it to `chapter-1-2.xhtml` and leaving a blank chapter at the head of the book and its table of contents. A book now stays empty until you add a chapter. Note that a spine with no entries is not valid EPUB 3; `validate_epub` reports it as `empty-spine`.
+
 ## [0.0.5] - 2026-07-24
 
 ### Fixed
