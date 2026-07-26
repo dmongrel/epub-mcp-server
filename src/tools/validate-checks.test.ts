@@ -3,10 +3,18 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  backCoverNotLast,
+  CHECKS,
   chapterNumberSequence,
+  coverImageMissing,
   danglingHref,
   duplicateId,
+  emptyChapter,
+  emptySpine,
+  malformedXHTML,
   manifestMissingFile,
+  missingMetadata,
+  missingNav,
   ncxTocDivergence,
   orphanContentDocument,
   spineMissingManifestItem,
@@ -33,6 +41,13 @@ export function addDoc(e: Epub, archivePath: string, opfId: string, markup: stri
 /** A two-chapter book whose toc has been rebuilt, so every check should pass. */
 export function cleanBook(title: string): Epub {
   const e = newEpub(title, "Author");
+  // newEpub's skeleton sets uniqueIdentifierRef to "uid", but the identifier
+  // it actually creates carries opf:id "bookid" (see the literal id string
+  // below) — the two never match, which missingMetadata correctly reports
+  // as a genuine defect. Align them here so a freshly-created book is
+  // clean, the same way a real producer's identifier and unique-identifier
+  // attribute agree.
+  primaryPackage(e)!.uniqueIdentifierRef = "bookid";
   addDoc(e, "text/ch1.xhtml", "ch1", chapterMarkup("Chapter 1: Dawn"));
   addDoc(e, "text/ch2.xhtml", "ch2", chapterMarkup("Chapter 2: Dusk"));
   rebuildToc(e, primaryPackage(e)!);
@@ -363,5 +378,221 @@ describe("duplicateId", () => {
     const findings = duplicateId(e, pkg);
 
     expect(findings.some((f) => f.message.includes("text/ch1.xhtml"))).toBe(true);
+  });
+});
+
+describe("malformedXHTML", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Malformed Clean");
+    expect(malformedXHTML(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a chapter with an unterminated tag", () => {
+    const e = cleanBook("Malformed Chapter");
+    e.contentDocuments["text/ch1.xhtml"]!.markup = `<html xmlns="http://www.w3.org/1999/xhtml"><body><p>broken</body></html>`;
+
+    const findings = malformedXHTML(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "malformed-xhtml", severity: "error", ids: ["text/ch1.xhtml"] });
+  });
+
+  test("accepts named entities and unclosed void elements", () => {
+    const e = cleanBook("Malformed Tolerant");
+    e.contentDocuments["text/ch1.xhtml"]!.markup = `<html xmlns="http://www.w3.org/1999/xhtml"><body><p>a&mdash;b<br></p></body></html>`;
+
+    expect(malformedXHTML(e, primaryPackage(e)!)).toEqual([]);
+  });
+});
+
+describe("missingNav", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Nav Clean");
+    expect(missingNav(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a book with no manifest item marked as the navigation document", () => {
+    const e = cleanBook("Nav Absent");
+    const navManifestItem = primaryPackage(e)!.manifest.items.find((i) => i.properties.includes("nav"));
+    if (navManifestItem) navManifestItem.properties = [];
+
+    const findings = missingNav(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "missing-nav", severity: "error" });
+  });
+
+  test("reports a spine toc attribute naming nothing", () => {
+    const e = cleanBook("Nav Toc Ref");
+    primaryPackage(e)!.spine.tocRef = "ghost-ncx";
+
+    const findings = missingNav(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain("ghost-ncx");
+  });
+});
+
+describe("missingMetadata", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Metadata Clean");
+    expect(missingMetadata(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports each missing required element", () => {
+    const e = cleanBook("Metadata Empty");
+    const pkg = primaryPackage(e)!;
+    pkg.metadata.identifiers = [];
+    pkg.metadata.titles = [];
+    pkg.metadata.languages = [];
+
+    const findings = missingMetadata(e, pkg);
+
+    expect(findings.map((f) => f.check)).toEqual(["missing-metadata", "missing-metadata", "missing-metadata", "missing-metadata"]);
+    expect(findings.every((f) => f.remedy.includes("edit_metadata"))).toBe(true);
+  });
+
+  test("reports a unique-identifier naming no identifier", () => {
+    const e = cleanBook("Metadata Uid");
+    primaryPackage(e)!.uniqueIdentifierRef = "ghost-id";
+
+    const findings = missingMetadata(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain("ghost-id");
+  });
+});
+
+describe("emptySpine", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Spine Full");
+    expect(emptySpine(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a book with no reading order", () => {
+    // newEpub's skeleton already places its nav document into the spine
+    // (itemRefs: [{ idRef: "nav", ... }]), so a plain newEpub() call alone
+    // doesn't reproduce an empty spine — clear it explicitly.
+    const e = newEpub("Spine Empty", "Author");
+    primaryPackage(e)!.spine.itemRefs = [];
+
+    const findings = emptySpine(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "empty-spine", severity: "error" });
+    expect(findings[0]!.remedy).toContain("convert_manuscript");
+  });
+});
+
+describe("coverImageMissing", () => {
+  test("finds nothing wrong with a book that has no cover", () => {
+    const e = cleanBook("Cover None");
+    expect(coverImageMissing(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a cover-image item whose file is absent", () => {
+    const e = cleanBook("Cover Ghost");
+    const pkg = primaryPackage(e)!;
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/cover-img`, href: "images/cover.jpg", mediaType: "image/jpeg", properties: ["cover-image"], fallback: "", mediaOverlay: "" });
+
+    const findings = coverImageMissing(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "cover-image-missing", severity: "warning" });
+    expect(findings[0]!.remedy).toContain("edit_cover");
+  });
+
+  test("reports a legacy cover meta naming no manifest item", () => {
+    const e = cleanBook("Cover Meta");
+    const pkg = primaryPackage(e)!;
+    pkg.metadata.metas.push({ id: "m1", property: "", refines: "", scheme: "", value: "ghost-img", name: "cover" });
+
+    const findings = coverImageMissing(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain("ghost-img");
+  });
+});
+
+describe("backCoverNotLast", () => {
+  test("is a no-op for a book with no back cover", () => {
+    const e = cleanBook("Back None");
+    expect(backCoverNotLast(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("finds nothing wrong when the back cover is last", () => {
+    const e = cleanBook("Back Last");
+    const pkg = primaryPackage(e)!;
+    addDoc(e, "text/back.xhtml", "back", `<body><section epub:type="backmatter cover"><img src="b.jpg"/></section></body>`);
+    pkg.guide = { id: `${pkg.id}#guide`, references: [{ id: "g1", type: "other.back-cover", title: "Back Cover", href: "text/back.xhtml" }] };
+
+    expect(backCoverNotLast(e, pkg)).toEqual([]);
+  });
+
+  test("reports a back cover that something was appended after", () => {
+    const e = cleanBook("Back Not Last");
+    const pkg = primaryPackage(e)!;
+    addDoc(e, "text/back.xhtml", "back", `<body><section epub:type="backmatter cover"><img src="b.jpg"/></section></body>`);
+    pkg.guide = { id: `${pkg.id}#guide`, references: [{ id: "g1", type: "other.back-cover", title: "Back Cover", href: "text/back.xhtml" }] };
+    addDoc(e, "text/ch3.xhtml", "ch3", chapterMarkup("Chapter 3"));
+
+    const findings = backCoverNotLast(e, pkg);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "back-cover-not-last", severity: "warning" });
+  });
+});
+
+describe("emptyChapter", () => {
+  test("finds nothing wrong with a clean book", () => {
+    const e = cleanBook("Empty Clean");
+    expect(emptyChapter(e, primaryPackage(e)!)).toEqual([]);
+  });
+
+  test("reports a chapter with no readable text", () => {
+    const e = cleanBook("Empty Stub");
+    e.contentDocuments["text/ch2.xhtml"]!.markup = `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title></head><body></body></html>`;
+
+    const findings = emptyChapter(e, primaryPackage(e)!);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: "empty-chapter", severity: "warning", ids: ["text/ch2.xhtml"] });
+  });
+});
+
+describe("CHECKS", () => {
+  test("registers all sixteen checks", () => {
+    expect(Object.keys(CHECKS)).toEqual([
+      "toc-spine-order",
+      "toc-label-heading-mismatch",
+      "chapter-number-sequence",
+      "ncx-toc-divergence",
+      "dangling-href",
+      "spine-missing-manifest-item",
+      "manifest-missing-file",
+      "orphan-content-document",
+      "duplicate-id",
+      "malformed-xhtml",
+      "missing-nav",
+      "missing-metadata",
+      "empty-spine",
+      "cover-image-missing",
+      "back-cover-not-last",
+      "empty-chapter",
+    ]);
+  });
+
+  test("every check reports findings under its own registered name", () => {
+    const e = cleanBook("Registry Names");
+    const pkg = primaryPackage(e)!;
+    for (const [name, check] of Object.entries(CHECKS)) {
+      for (const finding of check(e, pkg)) expect(finding.check).toBe(name);
+    }
+  });
+
+  test("a clean book trips no check at all", () => {
+    const e = cleanBook("Registry Clean");
+    const pkg = primaryPackage(e)!;
+    expect(Object.values(CHECKS).flatMap((check) => check(e, pkg))).toEqual([]);
   });
 });

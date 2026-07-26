@@ -20,7 +20,9 @@
 import { primaryNavigation } from "./get-navigation.ts";
 import { archiveIdInUse } from "./edit-resource.ts";
 import { chapterNumberFromLabel, deriveTocLabel } from "../epub/labels.ts";
-import { manifestItemByHref, manifestItemById, ncxItem, proseSpineDocuments, resolveHref } from "../epub/resolve.ts";
+import { backCoverGuideRef, manifestItemByHref, manifestItemById, navItem, ncxItem, proseSpineDocuments, resolveHref } from "../epub/resolve.ts";
+import { plainText } from "../epub/text.ts";
+import { validateXHTML } from "../epub/validate.ts";
 import type { Epub, ManifestItem, NCXNavPoint, NavList, NavPoint, Package } from "../epub/types.ts";
 
 /** One problem validate_epub found, with the tool call that would fix it. */
@@ -403,6 +405,20 @@ export const orphanContentDocument: Check = (e, pkg) => {
   return findings;
 };
 
+/**
+ * Reduces an ArchiveId to the bare opf:id it carries, so a reference
+ * written as a plain opf:id ("bookid") can be matched against a modelled
+ * id carrying its owner's path and element name ("content.opf#metadata/
+ * identifier[bookid]", per fragId in parse.ts) without this file having to
+ * know how each layer composes them.
+ */
+function idTail(id: string): string {
+  const i = id.lastIndexOf("[");
+  const j = id.lastIndexOf("]");
+  if (i === -1 || j === -1 || j < i) return id;
+  return id.slice(i + 1, j);
+}
+
 /** Manifest ids, spine entries, and manifest hrefs must each be unique — a duplicate makes every reference to it ambiguous, and which one wins is up to the reading system. */
 export const duplicateId: Check = (_e, pkg) => {
   const findings: ValidateEpubFinding[] = [];
@@ -444,4 +460,241 @@ export const duplicateId: Check = (_e, pkg) => {
   }
 
   return findings;
+};
+
+/** Content and navigation documents must be well-formed XHTML, or a reading system may refuse to render them at all. */
+export const malformedXHTML: Check = (e, _pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  for (const path of Object.keys(e.contentDocuments).sort()) {
+    try {
+      validateXHTML(e.contentDocuments[path]!.markup);
+    } catch (err) {
+      findings.push({
+        check: "malformed-xhtml",
+        severity: "error",
+        message: `Content document ${path} is not well-formed XHTML: ${(err as Error).message}`,
+        ids: [path],
+        remedy: `Call edit_chapter with action "edit" on ${JSON.stringify(path)} and corrected markup.`,
+      });
+    }
+  }
+
+  for (const path of Object.keys(e.navigation).sort()) {
+    try {
+      validateXHTML(e.navigation[path]!.markup);
+    } catch (err) {
+      findings.push({
+        check: "malformed-xhtml",
+        severity: "error",
+        message: `Navigation document ${path} is not well-formed XHTML: ${(err as Error).message}`,
+        ids: [path],
+        remedy: "Any edit_navigation or convert_manuscript call re-renders the navigation document from its structured lists, replacing the broken markup.",
+      });
+    }
+  }
+
+  return findings;
+};
+
+/** EPUB 3 requires a navigation document, and it must be findable: declared with properties="nav" in the manifest and present in the archive. */
+export const missingNav: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  const item = navItem(pkg);
+  if (!item) {
+    findings.push({
+      check: "missing-nav",
+      severity: "error",
+      message: 'No manifest item is marked properties="nav", so this book has no EPUB 3 navigation document and no table of contents.',
+      ids: [pkg.manifest.id],
+      remedy: 'Call edit_manifest with action "edit" to add the "nav" property to the navigation document\'s item, or edit_navigation to build one.',
+    });
+  } else if (!e.navigation[resolveHref(pkg, item.href)]) {
+    findings.push({
+      check: "missing-nav",
+      severity: "error",
+      message: `The manifest item marked as the navigation document (${item.id}) points at ${resolveHref(pkg, item.href)}, which is not a navigation document in this EPUB.`,
+      ids: [item.id],
+      remedy: `Call edit_manifest with action "edit" on ${JSON.stringify(item.id)} to point it at the real navigation document.`,
+    });
+  }
+
+  if (pkg.spine.tocRef !== "" && !manifestItemById(pkg, pkg.spine.tocRef)) {
+    findings.push({
+      check: "missing-nav",
+      severity: "error",
+      message: `The spine's toc attribute names manifest item ${JSON.stringify(pkg.spine.tocRef)}, which does not exist.`,
+      ids: [pkg.spine.id],
+      remedy: `Call edit_manifest with action "create" to add the legacy NCX item ${JSON.stringify(pkg.spine.tocRef)}, or edit_spine with action "edit" to clear the toc attribute.`,
+    });
+  }
+
+  return findings;
+};
+
+/** dc:identifier, dc:title, and dc:language are required by the spec, and the package's unique-identifier must name one of the identifiers actually present. */
+export const missingMetadata: Check = (_e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  const require = (present: boolean, element: string, field: string): void => {
+    if (present) return;
+    findings.push({
+      check: "missing-metadata",
+      severity: "error",
+      message: `This book has no ${element}, which EPUB requires.`,
+      ids: [pkg.metadata.id],
+      remedy: `Call edit_metadata with action "create" and field ${JSON.stringify(field)}.`,
+    });
+  };
+
+  require(pkg.metadata.identifiers.length > 0, "dc:identifier", "identifier");
+  require(pkg.metadata.titles.length > 0, "dc:title", "title");
+  require(pkg.metadata.languages.length > 0, "dc:language", "language");
+
+  if (pkg.uniqueIdentifierRef === "") {
+    findings.push({
+      check: "missing-metadata",
+      severity: "error",
+      message: "The package's unique-identifier attribute is not set, so no identifier is marked as this book's canonical one.",
+      ids: [pkg.id],
+      remedy: 'Call edit_metadata with action "create" and field "identifier" to add an identifier, which sets the package\'s unique-identifier to match.',
+    });
+  } else if (!pkg.metadata.identifiers.some((ident) => idTail(ident.id) === pkg.uniqueIdentifierRef)) {
+    findings.push({
+      check: "missing-metadata",
+      severity: "error",
+      message: `The package's unique-identifier names ${JSON.stringify(pkg.uniqueIdentifierRef)}, which is not one of this book's ${pkg.metadata.identifiers.length} identifier(s).`,
+      ids: [pkg.id],
+      remedy: 'Call edit_metadata with action "create" and field "identifier" to add the missing identifier, or action "edit" to correct an existing one.',
+    });
+  }
+
+  return findings;
+};
+
+/** A spine with no entries has no reading order at all — EPUB 3 requires at least one itemref, and a reading system has nothing to open. */
+export const emptySpine: Check = (_e, pkg) => {
+  if (pkg.spine.itemRefs.length > 0) return [];
+  return [
+    {
+      check: "empty-spine",
+      severity: "error",
+      message: "This book's spine has no entries, so it has no reading order. EPUB 3 requires at least one.",
+      ids: [pkg.spine.id],
+      remedy: 'Call edit_chapter with action "create", or convert_manuscript, to add a chapter.',
+    },
+  ];
+};
+
+/** A declared cover must resolve to a file that exists, or the book shows up in a library with a broken thumbnail. */
+export const coverImageMissing: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+
+  for (const item of pkg.manifest.items) {
+    if (!item.properties.includes("cover-image")) continue;
+    const path = resolveHref(pkg, item.href);
+    if (archiveIdInUse(e, path)) continue;
+    findings.push({
+      check: "cover-image-missing",
+      severity: "warning",
+      message: `Manifest item ${JSON.stringify(item.id)} is marked as the cover image but points at ${path}, which is not a file in this EPUB.`,
+      ids: [item.id],
+      remedy: 'Call edit_cover with action "create" and a sourcePath to supply the image, or edit_manifest to remove the item.',
+    });
+  }
+
+  for (const meta of pkg.metadata.metas) {
+    if (meta.name !== "cover" || meta.value === "") continue;
+    if (manifestItemById(pkg, meta.value)) continue;
+    findings.push({
+      check: "cover-image-missing",
+      severity: "warning",
+      message: `The legacy cover meta names manifest item ${JSON.stringify(meta.value)}, which does not exist.`,
+      ids: [meta.id],
+      remedy: "Call edit_cover to set a cover, which rewrites the legacy meta to match, or edit_metadata to remove the stale meta.",
+    });
+  }
+
+  return findings;
+};
+
+/**
+ * This server's own invariant: insertChapter places new chapters before the
+ * back cover (see spineInsertionIndexBeforeBackCover) so a back cover stays
+ * the last thing a linear read reaches. A back cover that isn't last means
+ * something bypassed that, and readers hit the back cover mid-book.
+ */
+export const backCoverNotLast: Check = (_e, pkg) => {
+  const ref = backCoverGuideRef(pkg);
+  if (!ref) return [];
+
+  const path = resolveHref(pkg, ref.href);
+  const item = manifestItemByHref(pkg, path);
+  if (!item) return []; // danglingHref reports this
+
+  const opfId = manifestOpfId(pkg, item);
+  const index = pkg.spine.itemRefs.findIndex((r) => r.idRef === opfId);
+  if (index === -1) {
+    return [
+      {
+        check: "back-cover-not-last",
+        severity: "warning",
+        message: `The back cover (${path}) is not in the spine, so a linear read never reaches it.`,
+        ids: [path],
+        remedy: 'Call edit_spine with action "create" to place it at the end of the reading order.',
+      },
+    ];
+  }
+  if (index === pkg.spine.itemRefs.length - 1) return [];
+
+  return [
+    {
+      check: "back-cover-not-last",
+      severity: "warning",
+      message: `The back cover (${path}) is spine entry ${index + 1} of ${pkg.spine.itemRefs.length}, not the last one, so readers reach it before the end of the book.`,
+      ids: [path],
+      remedy: 'Call edit_spine with action "remove" on the back cover\'s entry, then action "create" to re-add it at the end of the reading order.',
+    },
+  ];
+};
+
+/** A prose document with no readable text is almost always a leftover stub or a chapter whose content failed to land. */
+export const emptyChapter: Check = (e, pkg) => {
+  const findings: ValidateEpubFinding[] = [];
+  for (const doc of proseSpineDocuments(e, pkg)) {
+    if (plainText(doc.markup).trim() !== "") continue;
+    findings.push({
+      check: "empty-chapter",
+      severity: "warning",
+      message: `Chapter ${doc.archivePath} has no readable text.`,
+      ids: [doc.archivePath],
+      remedy: `Call edit_chapter with action "edit" on ${JSON.stringify(doc.archivePath)} to give it content, or action "remove" to delete it.`,
+    });
+  }
+  return findings;
+};
+
+/**
+ * Every check validate_epub can run, keyed by the name it reports findings
+ * under. Insertion order is the order findings are reported in, so the
+ * alignment checks a caller most likely acted on come first.
+ */
+export const CHECKS: Record<string, Check> = {
+  "toc-spine-order": tocSpineOrder,
+  "toc-label-heading-mismatch": tocLabelHeadingMismatch,
+  "chapter-number-sequence": chapterNumberSequence,
+  "ncx-toc-divergence": ncxTocDivergence,
+  "dangling-href": danglingHref,
+  "spine-missing-manifest-item": spineMissingManifestItem,
+  "manifest-missing-file": manifestMissingFile,
+  "orphan-content-document": orphanContentDocument,
+  "duplicate-id": duplicateId,
+  "malformed-xhtml": malformedXHTML,
+  "missing-nav": missingNav,
+  "missing-metadata": missingMetadata,
+  "empty-spine": emptySpine,
+  "cover-image-missing": coverImageMissing,
+  "back-cover-not-last": backCoverNotLast,
+  "empty-chapter": emptyChapter,
 };
