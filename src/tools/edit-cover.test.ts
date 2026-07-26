@@ -12,6 +12,31 @@ import { findCoverItem } from "./get-cover.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
 import { writeEpub } from "../epub/write.ts";
+import type { Epub } from "../epub/types.ts";
+
+/** newEpub()'s skeleton relocated so its package document lives at OEBPS/content.opf, giving a book with a non-empty baseDir. */
+function nestedEpub(title: string): Epub {
+  const e = newEpub(title, "Author");
+
+  const pkg = e.packages["content.opf"]!;
+  delete e.packages["content.opf"];
+  pkg.id = "OEBPS/content.opf";
+  pkg.baseDir = "OEBPS/";
+  e.packages["OEBPS/content.opf"] = pkg;
+  e.container.rootfiles[0]!.fullPath = "OEBPS/content.opf";
+
+  const nav = e.navigation["nav.xhtml"]!;
+  delete e.navigation["nav.xhtml"];
+  nav.id = "OEBPS/nav.xhtml";
+  e.navigation["OEBPS/nav.xhtml"] = nav;
+
+  const css = e.resources["styles/style.css"]!;
+  delete e.resources["styles/style.css"];
+  css.id = "OEBPS/styles/style.css";
+  e.resources["OEBPS/styles/style.css"] = css;
+
+  return e;
+}
 
 const fakeServer = {} as Server;
 
@@ -127,6 +152,38 @@ describe("edit_cover", () => {
   test("remove fails if the book has no cover", async () => {
     const { dir, path } = await writeTempBook();
     await expect(handleEditCover(fakeServer, { action: "remove", path })).rejects.toThrow("has no cover image");
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("on a book whose package document isn't at the archive root, the landmark and guide hrefs are baseDir-relative, not full archive paths", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "epub-edit-cover-nested-test-"));
+    const path = join(dir, "book.epub");
+    const sourcePath = join(dir, "cover-source.jpg");
+    await writeFile(sourcePath, "fake-jpeg-bytes");
+    const abs = resolve(path);
+    epubCache.put(abs, nestedEpub("Nested Cover Test"));
+
+    await handleEditCover(fakeServer, { action: "create", path, id: "OEBPS/images/cover.jpg", sourcePath });
+
+    const cached = epubCache.get(abs)!;
+    const pkg = primaryPackage(cached)!;
+
+    const nav = cached.navigation["OEBPS/nav.xhtml"]!;
+    const landmarks = nav.lists.find((l) => l.type === "landmarks");
+    const landmark = landmarks?.items.find((p) => p.type === "cover");
+    expect(landmark?.href).toBe("cover.xhtml");
+
+    const guideRef = pkg.guide?.references.find((r) => r.type === "cover");
+    expect(guideRef?.href).toBe("cover.xhtml");
+
+    // Both must resolve to the wrapper page's real archive path.
+    expect(Object.keys(cached.contentDocuments)).toEqual(["OEBPS/cover.xhtml"]);
+
+    // remove must find and clean up the same wrapper page via those relative hrefs.
+    await handleEditCover(fakeServer, { action: "remove", path });
+    expect(Object.keys(epubCache.get(abs)!.contentDocuments)).toHaveLength(0);
+    expect(landmarks?.items.some((p) => p.type === "cover")).toBe(false);
+
     await rm(dir, { recursive: true, force: true });
   });
 });

@@ -12,6 +12,7 @@ import {
   navItem,
   ncxItem,
   proseSpineDocuments,
+  spineInsertionIndexBeforeBackCover,
 } from "./resolve.ts";
 import type { Epub, Package } from "./types.ts";
 import { newEpub } from "./new-epub.ts";
@@ -118,6 +119,30 @@ describe("manifestItemByHref", () => {
   test("returns undefined when no item matches", () => {
     const pkg = emptyPackage("OEBPS/");
     expect(manifestItemByHref(pkg, "OEBPS/missing.xhtml")).toBeUndefined();
+  });
+});
+
+describe("spineInsertionIndexBeforeBackCover", () => {
+  test("finds the back cover via a baseDir-relative guide href, not a full archive path", () => {
+    const pkg = emptyPackage("OEBPS/");
+    pkg.manifest.items.push({
+      id: "manifest/back",
+      href: "back-cover.xhtml",
+      mediaType: "application/xhtml+xml",
+      properties: [],
+      fallback: "",
+      mediaOverlay: "",
+    });
+    pkg.spine.itemRefs.push({ id: "", idRef: "back", linear: true, properties: [] });
+    pkg.guide = { id: "guide", references: [{ id: "guide/ref", type: "other.back-cover", title: "", href: "back-cover.xhtml" }] };
+
+    expect(spineInsertionIndexBeforeBackCover(pkg)).toBe(0);
+  });
+
+  test("falls back to appending at the end when the book has no back cover", () => {
+    const pkg = emptyPackage("OEBPS/");
+    pkg.spine.itemRefs.push({ id: "", idRef: "ch1", linear: true, properties: [] });
+    expect(spineInsertionIndexBeforeBackCover(pkg)).toBe(1);
   });
 });
 

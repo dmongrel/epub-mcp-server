@@ -178,7 +178,7 @@ function createCover(e: Epub, pkg: Package, id: string, data: Uint8Array, mediaT
   renumberSpine(pkg);
 
   try {
-    applyGuideEdit(pkg, "create", "cover", "Cover", pageId);
+    applyGuideEdit(pkg, "create", "cover", "Cover", relativeHref(pkg, pageId));
   } catch {
     // A pre-existing guide reference of type "cover" without a tracked
     // cover-image manifest item would be unusual; ignore the error rather
@@ -186,7 +186,7 @@ function createCover(e: Epub, pkg: Package, id: string, data: Uint8Array, mediaT
   }
   try {
     const nav = primaryNavigation(e, pkg);
-    addLandmarkEntry(pkg, nav, "Cover", pageId, "cover");
+    addLandmarkEntry(pkg, nav, "Cover", relativeHref(pkg, pageId), "cover");
   } catch {
     // No EPUB 3 navigation document to add a landmark to; best-effort, matching Go.
   }
@@ -229,7 +229,7 @@ function removeCover(e: Epub, pkg: Package): EditCoverResult {
     let pageId = "";
     const keptRefs = pkg.guide.references.filter((r) => {
       if (r.type === "cover") {
-        pageId = r.href;
+        pageId = resolveHref(pkg, r.href);
         return false;
       }
       return true;
@@ -267,7 +267,7 @@ export function removeCoverPage(e: Epub, pkg: Package, pageId: string): void {
   for (const list of nav.lists) {
     if (list.type !== "landmarks") continue;
     const before = list.items.length;
-    list.items = list.items.filter((p) => p.href !== pageId);
+    list.items = list.items.filter((p) => resolveHref(pkg, p.href) !== pageId);
     if (list.items.length !== before) {
       // Landmark removal renumbers via the same helper edit_navigation
       // uses after any structural toc/landmarks change, then re-renders

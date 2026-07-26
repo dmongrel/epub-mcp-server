@@ -26,7 +26,7 @@ import { removeMatching, verbPast } from "./idlist.ts";
 import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
 import { archiveIdInUse, guessImageMediaType, manifestIdCandidate, uniqueManifestId } from "./edit-resource.ts";
-import { relativeArchiveHref, relativeHref, primaryPackage, manifestItemByHref, backCoverGuideRef } from "../epub/resolve.ts";
+import { relativeArchiveHref, relativeHref, resolveHref, primaryPackage, manifestItemByHref, backCoverGuideRef } from "../epub/resolve.ts";
 import { removeCoverPage, coverPageMarkup, uniqueArchivePath } from "./edit-cover.ts";
 import type { Epub, Package } from "../epub/types.ts";
 
@@ -178,13 +178,13 @@ function createBackCover(e: Epub, pkg: Package, id: string, data: Uint8Array, me
 
   // --- best-effort: guide reference + landmark ---
   try {
-    applyGuideEdit(pkg, "create", "other.back-cover", "Back Cover", pageId);
+    applyGuideEdit(pkg, "create", "other.back-cover", "Back Cover", relativeHref(pkg, pageId));
   } catch {
     /* ignore — matching Go's best-effort pattern */
   }
   try {
     const nav = primaryNavigation(e, pkg);
-    addLandmarkEntry(pkg, nav, "Back Cover", pageId, "afterword");
+    addLandmarkEntry(pkg, nav, "Back Cover", relativeHref(pkg, pageId), "afterword");
   } catch {
     /* no EPUB 3 navigation document; best-effort */
   }
@@ -197,7 +197,7 @@ function editExistingBackCover(e: Epub, pkg: Package, data: Uint8Array, mediaTyp
   if (!ref) throw new Error(`${JSON.stringify(pkg.id)} has no back cover; use action "create" instead`);
 
   // Resolve wrapper page to image id via backCoverImageId.
-  const imgId = backCoverImageId(e, ref.href);
+  const imgId = backCoverImageId(e, resolveHref(pkg, ref.href));
   if (!imgId) throw new Error(`back cover wrapper at ${JSON.stringify(ref.href)} does not contain an <img src>`);
 
   const res = e.resources[imgId];
@@ -218,7 +218,8 @@ function removeBackCover(e: Epub, pkg: Package): EditBackCoverResult {
   if (!ref) throw new Error(`${JSON.stringify(pkg.id)} has no back cover`);
 
   // Resolve wrapper page to image id.
-  const imgId = backCoverImageId(e, ref.href);
+  const archivePath = resolveHref(pkg, ref.href);
+  const imgId = backCoverImageId(e, archivePath);
   if (!imgId) throw new Error(`back cover wrapper at ${JSON.stringify(ref.href)} does not contain an <img src>`);
 
   const res = e.resources[imgId];
@@ -240,7 +241,7 @@ function removeBackCover(e: Epub, pkg: Package): EditBackCoverResult {
   }
 
   // Clean up wrapper page: content doc, manifest entry, spine entry, landmark.
-  removeCoverPage(e, pkg, ref.href);
+  removeCoverPage(e, pkg, archivePath);
 
   return { action: "remove", id: imgId, sizeBytes };
 }

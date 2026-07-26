@@ -11,8 +11,33 @@ import { epubCache } from "./epub-cache.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
 import { writeEpub } from "../epub/write.ts";
+import type { Epub } from "../epub/types.ts";
 
 const fakeServer = {} as Server;
+
+/** newEpub()'s skeleton relocated so its package document lives at OEBPS/content.opf, giving a book with a non-empty baseDir. */
+function nestedEpub(title: string): Epub {
+  const e = newEpub(title, "Author");
+
+  const pkg = e.packages["content.opf"]!;
+  delete e.packages["content.opf"];
+  pkg.id = "OEBPS/content.opf";
+  pkg.baseDir = "OEBPS/";
+  e.packages["OEBPS/content.opf"] = pkg;
+  e.container.rootfiles[0]!.fullPath = "OEBPS/content.opf";
+
+  const nav = e.navigation["nav.xhtml"]!;
+  delete e.navigation["nav.xhtml"];
+  nav.id = "OEBPS/nav.xhtml";
+  e.navigation["OEBPS/nav.xhtml"] = nav;
+
+  const css = e.resources["styles/style.css"]!;
+  delete e.resources["styles/style.css"];
+  css.id = "OEBPS/styles/style.css";
+  e.resources["OEBPS/styles/style.css"] = css;
+
+  return e;
+}
 
 async function writeTempBook(): Promise<{ dir: string; path: string; sourcePath: string }> {
   const dir = await mkdtemp(join(tmpdir(), "epub-edit-back-cover-test-"));
@@ -139,6 +164,40 @@ describe("edit_back_cover", () => {
     const lastItem = pkg.manifest.items.find((mi) => mi.id.endsWith("/" + pkg.spine.itemRefs[pkg.spine.itemRefs.length - 1]!.idRef));
     expect(firstItem?.href).toContain("cover.xhtml");
     expect(lastItem?.href).toContain("back-cover.xhtml");
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("on a book whose package document isn't at the archive root, the landmark and guide hrefs are baseDir-relative, not full archive paths", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "epub-edit-back-cover-nested-test-"));
+    const path = join(dir, "book.epub");
+    const sourcePath = join(dir, "back-cover-source.jpg");
+    await writeFile(sourcePath, "fake-jpeg-bytes-for-back-cover");
+    const abs = resolve(path);
+    epubCache.put(abs, nestedEpub("Nested Back Cover Test"));
+
+    await handleEditBackCover(fakeServer, { action: "create", path, id: "OEBPS/images/back-cover.jpg", sourcePath });
+
+    const cached = epubCache.get(abs)!;
+    const pkg = primaryPackage(cached)!;
+
+    const nav = cached.navigation["OEBPS/nav.xhtml"]!;
+    const landmarks = nav.lists.find((l) => l.type === "landmarks");
+    const landmark = landmarks?.items.find((p) => p.type === "afterword");
+    expect(landmark?.href).toBe("back-cover.xhtml");
+
+    const guideRef = pkg.guide?.references.find((r) => r.type === "other.back-cover");
+    expect(guideRef?.href).toBe("back-cover.xhtml");
+
+    expect(Object.keys(cached.contentDocuments)).toEqual(["OEBPS/back-cover.xhtml"]);
+
+    // edit and remove must resolve the same relative href back to the real archive path.
+    const editResult = await handleEditBackCover(fakeServer, { action: "edit", path, sourcePath });
+    expect(editResult.isError).toBeUndefined();
+
+    await handleEditBackCover(fakeServer, { action: "remove", path });
+    expect(Object.keys(epubCache.get(abs)!.contentDocuments)).toHaveLength(0);
+    expect(landmarks?.items.some((p) => p.type === "afterword")).toBe(false);
 
     await rm(dir, { recursive: true, force: true });
   });

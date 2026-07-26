@@ -100,7 +100,7 @@ export function spineInsertionIndexBeforeBackCover(pkg: Package): number {
   const ref = backCoverGuideRef(pkg);
   if (!ref) return pkg.spine.itemRefs.length;
 
-  const item = manifestItemByHref(pkg, ref.href);
+  const item = manifestItemByHref(pkg, resolveHref(pkg, ref.href));
   if (!item) return pkg.spine.itemRefs.length;
 
   const prefix = pkg.manifest.id + "/";
