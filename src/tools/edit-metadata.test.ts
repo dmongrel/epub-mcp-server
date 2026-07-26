@@ -11,14 +11,17 @@ import { handleEditMetadata } from "./edit-metadata.ts";
 import { epubCache } from "./epub-cache.ts";
 import { newEpub } from "../epub/new-epub.ts";
 import { primaryPackage } from "../epub/resolve.ts";
+import type { Package } from "../epub/types.ts";
 import { writeEpub } from "../epub/write.ts";
 
 const fakeServer = {} as Server;
 
-async function writeTempBook(): Promise<{ dir: string; path: string }> {
+async function writeTempBook(mutate?: (pkg: Package) => void): Promise<{ dir: string; path: string }> {
   const dir = await mkdtemp(join(tmpdir(), "epub-edit-metadata-test-"));
   const path = join(dir, "book.epub");
-  await writeEpub(newEpub("Edit Metadata Test", "Author"), path);
+  const e = newEpub("Edit Metadata Test", "Author");
+  if (mutate) mutate(primaryPackage(e)!);
+  await writeEpub(e, path);
   return { dir, path };
 }
 
@@ -100,6 +103,66 @@ describe("edit_metadata", () => {
     const cached = epubCache.get(resolve(path));
     const pkg = primaryPackage(cached!)!;
     expect(pkg.metadata.titles[0]).toMatchObject({ value: "New Title", type: "main", lang: "en" });
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("edit on an identifier repoints a dangling unique-identifier at it", async () => {
+    // The shape older new_epub versions produced: the package names "uid",
+    // but the one dc:identifier carries id="bookid".
+    const { dir, path } = await writeTempBook((pkg) => {
+      pkg.uniqueIdentifierRef = "uid";
+    });
+
+    await handleEditMetadata(fakeServer, {
+      action: "edit",
+      path,
+      field: "identifier",
+      id: "content.opf#metadata/identifier[bookid]",
+      value: "urn:uuid:11111111-1111-1111-1111-111111111111",
+      scheme: "UUID",
+    });
+
+    const pkg = primaryPackage(epubCache.get(resolve(path))!)!;
+    expect(pkg.uniqueIdentifierRef).toBe("bookid");
+    expect(pkg.metadata.identifiers[0]?.value).toBe("urn:uuid:11111111-1111-1111-1111-111111111111");
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("create gives the first identifier a real id and names it as unique-identifier", async () => {
+    const { dir, path } = await writeTempBook((pkg) => {
+      pkg.metadata.identifiers = [];
+      pkg.uniqueIdentifierRef = "";
+    });
+
+    const result = await handleEditMetadata(fakeServer, { action: "create", path, field: "identifier", value: "urn:isbn:9780000000002" });
+
+    expect(result.structuredContent?.id).toBe("content.opf#metadata/identifier[bookid]");
+    const pkg = primaryPackage(epubCache.get(resolve(path))!)!;
+    expect(pkg.uniqueIdentifierRef).toBe("bookid");
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("create leaves an already-valid unique-identifier alone", async () => {
+    const { dir, path } = await writeTempBook();
+    await handleEditMetadata(fakeServer, { action: "create", path, field: "identifier", value: "urn:isbn:9780000000002" });
+
+    const pkg = primaryPackage(epubCache.get(resolve(path))!)!;
+    expect(pkg.uniqueIdentifierRef).toBe("bookid");
+    expect(pkg.metadata.identifiers).toHaveLength(2);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("remove of the named identifier clears unique-identifier when none is left", async () => {
+    const { dir, path } = await writeTempBook();
+    await handleEditMetadata(fakeServer, { action: "remove", path, field: "identifier", id: "content.opf#metadata/identifier[bookid]" });
+
+    const pkg = primaryPackage(epubCache.get(resolve(path))!)!;
+    expect(pkg.metadata.identifiers).toHaveLength(0);
+    expect(pkg.uniqueIdentifierRef).toBe("");
 
     await rm(dir, { recursive: true, force: true });
   });

@@ -571,7 +571,7 @@ export const missingMetadata: Check = (_e, pkg) => {
       severity: "error",
       message: `The package's unique-identifier names ${JSON.stringify(pkg.uniqueIdentifierRef)}, which is not one of this book's ${pkg.metadata.identifiers.length} identifier(s).`,
       ids: [pkg.id],
-      remedy: 'Call edit_metadata with action "create" and field "identifier" to add the missing identifier, or action "edit" to correct an existing one.',
+      remedy: 'Call edit_metadata with action "edit" and field "identifier" on an existing identifier from get_metadata, passing its current value back, which repoints the package\'s unique-identifier at it.',
     });
   }
 

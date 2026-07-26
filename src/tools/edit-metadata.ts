@@ -15,6 +15,7 @@ import type { EpubTool, ToolHandlerResult } from "./registry.ts";
 import { registerTool } from "./registry.ts";
 import { primaryPackage } from "../epub/resolve.ts";
 import type { ArchiveId, Package } from "../epub/types.ts";
+import { idFragmentKey } from "../epub/write.ts";
 
 const METADATA_FIELDS = [
   "identifier", "title", "language", "creator", "contributor",
@@ -130,8 +131,10 @@ function applyMetadataEdit(pkg: Package, action: string, field: string, id: stri
         }
       }
       break;
-    case "identifier":
-      return editList(m.identifiers, action, id, m.id, "identifier", (v) => v.id, (elId) => ({ id: elId, scheme: args.scheme ?? "", value }), (list) => (m.identifiers = list));
+    case "identifier": {
+      const resultId = editList(m.identifiers, action, id, m.id, "identifier", (v) => v.id, (elId) => ({ id: elId, scheme: args.scheme ?? "", value }), (list) => (m.identifiers = list));
+      return syncUniqueIdentifier(pkg, resultId);
+    }
     case "title":
       return editList(m.titles, action, id, m.id, "title", (v) => v.id, (elId) => ({ id: elId, value, type: args.type ?? "", lang: args.lang ?? "" }), (list) => (m.titles = list));
     case "language":
@@ -149,6 +152,49 @@ function applyMetadataEdit(pkg: Package, action: string, field: string, id: stri
   }
 
   throw new Error(`unknown field ${JSON.stringify(field)}`);
+}
+
+/**
+ * Keeps package/@unique-identifier valid after any edit to the identifier
+ * list: EPUB 3 requires it to be an IDREF naming a dc:identifier that
+ * actually exists, and a book whose pointer dangles fails validate_epub's
+ * missing-metadata check with no other way to repair it (nothing else in the
+ * server writes uniqueIdentifierRef). A pointer that already resolves is left
+ * exactly as it is, so this only ever fixes books that are already broken.
+ *
+ * When the pointer has to be re-aimed it goes at the first identifier, minting
+ * a real xml id for that one if it only has fragId's positional fallback — the
+ * fallback means the element carried no id attribute at all, so no refines can
+ * be pointing at it and naming it now breaks nothing. Returns resultId,
+ * updated if the entry it names is the one that was just given a real id.
+ */
+function syncUniqueIdentifier(pkg: Package, resultId: string): string {
+  const idents = pkg.metadata.identifiers;
+  const realKey = (id: ArchiveId): string => {
+    const [key, isRealId] = idFragmentKey(id);
+    return isRealId ? key : "";
+  };
+
+  if (pkg.uniqueIdentifierRef !== "" && idents.some((v) => realKey(v.id) === pkg.uniqueIdentifierRef)) return resultId;
+
+  const target = idents[0];
+  if (!target) {
+    pkg.uniqueIdentifierRef = "";
+    return resultId;
+  }
+
+  let key = realKey(target.id);
+  if (key === "") {
+    const taken = new Set(idents.map((v) => realKey(v.id)));
+    key = "bookid";
+    for (let n = 2; taken.has(key); n++) key = `bookid-${n}`;
+    const newId: ArchiveId = `${pkg.metadata.id}/identifier[${key}]`;
+    if (resultId === target.id) resultId = newId;
+    idents[0] = { ...target, id: newId };
+  }
+
+  pkg.uniqueIdentifierRef = key;
+  return resultId;
 }
 
 /**
@@ -219,8 +265,11 @@ registerTool(
     "to update content that's already there. Call get_metadata first to check whether the entry you want " +
     'already exists; if it does, use action "edit" (addressed by its id) instead of "create", which would ' +
     "otherwise leave a duplicate alongside it. create fails outright if value and every given attribute " +
-    "exactly match an existing entry in the same field. Only touches the in-memory cache; call save_epub " +
-    "afterwards to persist.",
+    "exactly match an existing entry in the same field.\n\nAny create/edit/remove on the identifier field also " +
+    "keeps the package's unique-identifier attribute pointing at an identifier that exists, as EPUB 3 requires — " +
+    "so editing an identifier is the way to repair a book that validate_epub reports as missing-metadata for a " +
+    "unique-identifier naming nothing. A book whose unique-identifier is already valid keeps it unchanged. Only " +
+    "touches the in-memory cache; call save_epub afterwards to persist.",
   handleEditMetadata as never,
 );
 

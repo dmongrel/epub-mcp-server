@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.1] - 2026-07-26
+
+### Fixed
+
+- **Books already carrying the old `unique-identifier` mismatch could not be repaired.** Fixing `new_epub` in 0.1.0 stopped the bug being created, but every book made before that still names `uid` while its `dc:identifier` carries `id="bookid"`, and no tool could write the package's `unique-identifier` — so `validate_epub`'s `missing-metadata` finding suggested a remedy that did nothing. `edit_metadata` on the `identifier` field now maintains the attribute: after any create/edit/remove it names a `dc:identifier` that exists, per EPUB 3 §3.4.1, minting a real `id` for the target if it had none. Repair a book with a single `edit_metadata` call — action `edit`, field `identifier`, its own id and current value — then `save_epub`. A `unique-identifier` that already resolves is never touched.
+
 ## [0.1.0] - 2026-07-25
 
 ### Added
