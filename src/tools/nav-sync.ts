@@ -25,8 +25,14 @@ import { removeAt } from "./idlist.ts";
 import { primaryNavigation } from "./get-navigation.ts";
 import { bookTitle, bookUID, findOrCreateNavList, renumberNavPoints, toNCXPoints } from "./edit-navigation.ts";
 import { ncxItem, resolveHref } from "../epub/resolve.ts";
+import { defaultChapterLabel } from "../epub/labels.ts";
 import { renderNavigationDocument, renderNCXDocument } from "../epub/render-nav.ts";
 import type { Epub, NavList, NavPoint, Navigation, Package } from "../epub/types.ts";
+
+// Re-exported so existing importers (and nav-sync.test.ts) keep reaching it
+// here, while the single definition lives in the epub layer where the
+// validator can use it too without importing from src/tools/.
+export { defaultChapterLabel };
 
 /** Appends a top-level "toc" entry for archivePath, best-effort. Returns whether the sync happened. */
 export function syncTocOnChapterCreate(e: Epub, pkg: Package, archivePath: string, label: string): boolean {
@@ -81,19 +87,6 @@ export function syncNavRender(e: Epub, pkg: Package, nav: Navigation, list: NavL
       renderNCXDocument(ncx, docTitle, bookUID(pkg));
     }
   }
-}
-
-/** Derives a human-readable toc label from an archive path's file name, e.g. "text/chapter-18.xhtml" -> "Chapter 18", for create calls that don't supply an explicit label. */
-export function defaultChapterLabel(archivePath: string): string {
-  let name = archivePath;
-  const slash = name.lastIndexOf("/");
-  if (slash >= 0) name = name.slice(slash + 1);
-  const dot = name.lastIndexOf(".");
-  if (dot > 0) name = name.slice(0, dot);
-  name = name.replace(/[-_]/g, " ");
-  const words = name.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "Untitled";
-  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
 /** Deletes the first top-level NavPoint in points whose href matches href, reporting whether one was found. Doesn't recurse into children, since syncTocOnChapterCreate only ever inserts top-level entries. */
