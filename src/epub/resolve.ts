@@ -3,6 +3,7 @@
 
 import { posix } from "node:path";
 import type { Epub, ManifestItem, Package } from "./types.ts";
+import { isCoverPage } from "./text.ts";
 
 /**
  * Returns the href, relative to the directory containing fromArchivePath,
@@ -122,5 +123,37 @@ export function ncxItem(pkg: Package): ManifestItem | undefined {
   const byTocRef = manifestItemById(pkg, pkg.spine.tocRef);
   if (byTocRef) return byTocRef;
   return pkg.manifest.items.find((item) => item.mediaType === "application/x-dtbncx+xml");
+}
+
+/** One prose content document, located and loaded — what proseSpineDocuments yields. */
+export interface ProseDocument {
+  /** The document's archive path, which keys Epub.contentDocuments. */
+  archivePath: string;
+  markup: string;
+}
+
+/**
+ * Every prose content document in pkg's spine reading order: each itemref
+ * resolved through the manifest to a content document, with cover pages and
+ * anything that isn't a content document (a dangling idref, an image, an
+ * NCX) skipped.
+ *
+ * This is the canonical answer to "what are this book's chapters, in
+ * order". rebuildToc builds the table of contents from it, validate_epub
+ * checks the table of contents against it, and find_text numbers chapters
+ * the same way — so a book's Nth chapter means the same thing everywhere.
+ */
+export function proseSpineDocuments(e: Epub, pkg: Package): ProseDocument[] {
+  const out: ProseDocument[] = [];
+  for (const ref of pkg.spine.itemRefs) {
+    const item = manifestItemById(pkg, ref.idRef);
+    if (!item) continue;
+    const archivePath = resolveHref(pkg, item.href);
+    const doc = e.contentDocuments[archivePath];
+    if (!doc) continue;
+    if (isCoverPage(doc.markup)) continue;
+    out.push({ archivePath, markup: doc.markup });
+  }
+  return out;
 }
 

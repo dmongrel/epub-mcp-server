@@ -11,6 +11,7 @@ import {
   manifestItemById,
   navItem,
   ncxItem,
+  proseSpineDocuments,
 } from "./resolve.ts";
 import type { Epub, Package } from "./types.ts";
 import { newEpub } from "./new-epub.ts";
@@ -245,6 +246,49 @@ describe("ncxItem", () => {
     // freshly created EPUB-3-only book has no NCX at all.
     const pkg = primaryPackage(newEpub("NCX Regression Test", "Author"))!;
     expect(ncxItem(pkg)).toBeUndefined();
+  });
+});
+
+describe("proseSpineDocuments", () => {
+  /** Adds a content document to e with a manifest item and a spine entry at the end, mirroring what insertChapter does. */
+  function addDoc(e: ReturnType<typeof newEpub>, archivePath: string, opfId: string, markup: string): void {
+    const pkg = primaryPackage(e)!;
+    pkg.manifest.items.push({ id: `${pkg.manifest.id}/${opfId}`, href: archivePath, mediaType: "application/xhtml+xml", properties: [], fallback: "", mediaOverlay: "" });
+    pkg.spine.itemRefs.push({ id: "", idRef: opfId, linear: true, properties: [] });
+    e.contentDocuments[archivePath] = { id: archivePath, mediaType: "application/xhtml+xml", markup };
+  }
+
+  test("returns prose documents in spine order", () => {
+    const e = newEpub("Prose Order", "Author");
+    addDoc(e, "text/b.xhtml", "b", "<body><h2>Chapter 2</h2></body>");
+    addDoc(e, "text/a.xhtml", "a", "<body><h2>Chapter 1</h2></body>");
+
+    expect(proseSpineDocuments(e, primaryPackage(e)!).map((d) => d.archivePath)).toEqual(["text/b.xhtml", "text/a.xhtml"]);
+  });
+
+  test("skips cover pages", () => {
+    const e = newEpub("Prose Covers", "Author");
+    addDoc(e, "text/cover.xhtml", "cov", `<body><section epub:type="cover"><img src="c.jpg"/></section></body>`);
+    addDoc(e, "text/ch1.xhtml", "ch1", "<body><h2>Chapter 1</h2></body>");
+    addDoc(e, "text/back.xhtml", "back", `<body><section epub:type="backmatter cover"><img src="b.jpg"/></section></body>`);
+
+    expect(proseSpineDocuments(e, primaryPackage(e)!).map((d) => d.archivePath)).toEqual(["text/ch1.xhtml"]);
+  });
+
+  test("skips spine entries that resolve to no content document", () => {
+    const e = newEpub("Prose Dangling", "Author");
+    addDoc(e, "text/ch1.xhtml", "ch1", "<body><h2>Chapter 1</h2></body>");
+    const pkg = primaryPackage(e)!;
+    pkg.spine.itemRefs.push({ id: "", idRef: "ghost", linear: true, properties: [] });
+
+    expect(proseSpineDocuments(e, pkg).map((d) => d.archivePath)).toEqual(["text/ch1.xhtml"]);
+  });
+
+  test("carries each document's markup alongside its path", () => {
+    const e = newEpub("Prose Markup", "Author");
+    addDoc(e, "text/ch1.xhtml", "ch1", "<body><h2>Chapter 1: Dawn</h2></body>");
+
+    expect(proseSpineDocuments(e, primaryPackage(e)!)[0]?.markup).toContain("Chapter 1: Dawn");
   });
 });
 
