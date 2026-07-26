@@ -79,7 +79,7 @@ describe("save_epub", () => {
   });
 
   test("saves a book with no chapters as-is, adding nothing", async () => {
-    const { path } = await newTestEpub("No Auto Chapter");
+    const { path, dir } = await newTestEpub("No Auto Chapter");
 
     const res = await handleSaveEpub(fakeServer, { path });
 
@@ -91,19 +91,23 @@ describe("save_epub", () => {
     // something this fix touches, so the baseline here is 1, not 0.
     expect(primaryPackage(e)!.spine.itemRefs).toHaveLength(1);
     expect(res.content[0]!.text).not.toContain("blank");
+
+    await rm(dir, { recursive: true, force: true });
   });
 
   test("a saved-then-reloaded empty book still has no chapters", async () => {
-    const { path } = await newTestEpub("No Auto Chapter Roundtrip");
+    const { path, dir } = await newTestEpub("No Auto Chapter Roundtrip");
     await handleSaveEpub(fakeServer, { path });
     await handleCloseEpub(fakeServer, { path });
 
     await handleReadEpub(fakeServer, { path });
 
     expect(Object.keys(epubCache.get(resolve(path))!.contentDocuments)).toHaveLength(0);
+
+    await rm(dir, { recursive: true, force: true });
   });
 
-  test("converting a manuscript into a freshly saved new book puts chapter 1 at chapter-1.xhtml", async () => {
+  test("converting a manuscript into a freshly saved new book puts chapter 1 at text/chapter-1.xhtml", async () => {
     const { path, dir } = await newTestEpub("No Stub Collision");
     // The bug this guards: save_epub used to inject text/chapter-1.xhtml
     // here, so the real chapter 1 landed at chapter-1-2.xhtml with a blank
@@ -115,13 +119,15 @@ describe("save_epub", () => {
     await handleConvertManuscript(fakeServer, { path, sourcePath });
 
     const e = epubCache.get(resolve(path))!;
-    // deriveManuscriptBaseId falls back to pkg.baseDir + "chapter" when there
-    // are no existing content documents to infer a directory from, so with
-    // the injection gone (no pre-existing "text/chapter-1.xhtml" stub) these
-    // land at the archive root rather than under "text/".
-    expect(Object.keys(e.contentDocuments).sort()).toEqual(["chapter-1.xhtml", "chapter-2.xhtml"]);
+    // With no existing content documents to infer a directory from,
+    // deriveManuscriptBaseId falls back to pkg.baseDir + "text/", so chapter 1
+    // lands at the conventional path rather than at the archive root — the
+    // same place it went when save_epub still injected a stub there.
+    expect(Object.keys(e.contentDocuments).sort()).toEqual(["text/chapter-1.xhtml", "text/chapter-2.xhtml"]);
     const toc = e.navigation["nav.xhtml"]!.lists.find((l) => l.type === "toc")!;
     expect(toc.items.map((i) => i.label)).toEqual(["Chapter 1: Dawn", "Chapter 2: Dusk"]);
+
+    await rm(dir, { recursive: true, force: true });
   });
 });
 

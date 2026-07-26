@@ -209,9 +209,16 @@ function leftoverVerb(action: string): string {
   return action === "delete" ? "deleted" : "kept";
 }
 
-/** Picks a directory + stem to build new chapter archive paths from: borrows an existing content document's directory if the book has one, falling back to the package's own baseDir. */
+/**
+ * Picks a directory + stem to build new chapter archive paths from: borrows
+ * an existing content document's directory if the book has one, falling back
+ * to a "text/" subdirectory of the package's own baseDir for a book with no
+ * content documents at all. The fallback keeps chapters out of the archive
+ * root, which is where the conventional layout — and every book this server
+ * has produced — puts them.
+ */
 function deriveManuscriptBaseId(e: Epub, pkg: Package): string {
-  let dir = pkg.baseDir;
+  let dir = pkg.baseDir + "text/";
   for (const id of Object.keys(e.contentDocuments)) {
     const slash = id.lastIndexOf("/");
     dir = slash >= 0 ? id.slice(0, slash + 1) : "";
