@@ -74,8 +74,8 @@ registerTool(
     "evicting the least recently used if the cache is full — and returns its metadata, including an " +
     "(initially empty) tableOfContents tree in the same shape read_epub returns. After creating an " +
     "EPUB, use edit_chapter to add chapters (each one is added to the table of contents automatically) and " +
-    "save_epub to persist changes; save_epub adds a single blank chapter automatically if none exist yet " +
-    "by the time it's called, since EPUB requires at least one. The returned path is canonicalized " +
+    "save_epub to persist changes; the book stays empty until you add a chapter, and save_epub never " +
+    "invents one. The returned path is canonicalized " +
     "(symlinks resolved, case folded on filesystems that are case-insensitive by default) — reuse it " +
     "verbatim in later tool calls rather than re-typing your own path string, so every call is guaranteed " +
     "to refer to this exact same cache entry.",
